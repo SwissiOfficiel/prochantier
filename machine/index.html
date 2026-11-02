@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script src="../config.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ProChantier Heures">
+<meta name="theme-color" content="#D42D20">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<title>ProChantier Heures</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#D42D20;--navy2:#831C14;--yellow:#F0A500;--teal:#1A7F72;
+  --red:#E53935;--orange:#E67E22;--green:#2E7D32;
+  --white:#fff;--bg:#F4F6FB;--bg2:#EAECF4;--card:#fff;
+  --border:#E0E4EF;--text:#1A2340;--text2:#4A5878;--text3:#9AA3BC;
+  --nav-h:62px;--top-h:58px;
+  --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
+  --r:12px;--rs:8px;--sh:0 2px 12px rgba(212,45,32,.10);--shm:0 4px 20px rgba(212,45,32,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+ 
+/* ── TOPBAR ── */
+.topbar{height:calc(var(--top-h) + var(--safe-t));padding-top:var(--safe-t);background:var(--navy);display:flex;align-items:center;gap:10px;padding-left:14px;padding-right:14px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2);z-index:50;}
+.topbar-back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:16px;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Inter',sans-serif;}
+.topbar-title-block{flex:1;min-width:0;}
+.topbar-title-block .t1{font-size:14px;font-weight:700;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-title-block .t2{font-size:10px;color:rgba(255,255,255,.5);letter-spacing:.4px;}
+.topbar-calc-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:15px;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Inter',sans-serif;}
+
+/* ── OVERLAY CALCULATRICE ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;}
+.overlay.open{display:flex;}
+.bottom-sheet{background:var(--white);border-radius:20px 20px 0 0;width:100%;padding:20px 16px 32px;max-height:88vh;overflow-y:auto;}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.calc-sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.calc-sheet-title{font-size:16px;font-weight:700;color:var(--text);}
+.btn-calc-clear-hist{border:none;background:none;font-size:16px;color:var(--text3);cursor:pointer;padding:4px 6px;}
+.btn-calc-clear-hist:active{opacity:.6;}
+.calc-expr-line{font-size:13px;color:var(--text3);text-align:right;min-height:16px;padding:0 14px;}
+.calc-display{background:var(--bg);border-radius:var(--rs);padding:10px 14px 16px;text-align:right;font-size:28px;font-weight:700;margin-bottom:10px;color:var(--text);overflow-x:auto;white-space:nowrap;}
+.calc-history-box{background:var(--bg);border-radius:var(--rs);padding:6px 12px;margin-bottom:10px;max-height:110px;overflow-y:auto;}
+.calc-history-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border);cursor:pointer;}
+.calc-history-row:first-child{border-top:none;}
+.calc-history-row:active{opacity:.6;}
+.calc-history-expr{font-size:12px;color:var(--text3);}
+.calc-history-result{font-size:12px;font-weight:700;color:var(--text);}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.calc-btn{border:none;background:var(--bg);color:var(--text);font-family:inherit;font-size:18px;font-weight:600;padding:16px 0;border-radius:var(--rs);cursor:pointer;}
+.calc-btn:active{opacity:.7;}
+.calc-btn.op{background:var(--navy);color:#fff;}
+.calc-btn.eq{background:var(--yellow);color:var(--navy);grid-row:span 2;}
+.calc-btn.span2{grid-column:span 2;}
+ 
+/* ── SCROLL ── */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:14px 13px calc(var(--nav-h) + var(--safe-b) + 14px);}
+ 
+/* ── BOTTOM NAV ── */
+.bottom-nav{height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--safe-b);background:#fff;border-top:1px solid var(--border);display:flex;flex-shrink:0;box-shadow:0 -2px 10px rgba(212,45,32,.07);z-index:50;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:transparent;cursor:pointer;padding:0;transition:all .15s;}
+.nav-icon{font-size:19px;line-height:1;}
+.nav-label{font-size:9px;font-weight:600;color:var(--text3);letter-spacing:.3px;text-transform:uppercase;}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:transparent;margin-top:1px;}
+.nav-btn.active .nav-label{color:var(--navy);}
+.nav-btn.active .nav-dot{background:var(--navy);}
+.nav-badge-wrap{position:relative;display:inline-block;}
+.alert-dot{position:absolute;top:-1px;right:-5px;width:8px;height:8px;background:var(--red);border-radius:50%;display:none;}
+.alert-dot.show{display:block;}
+ 
+/* ── VIEWS ── */
+.view{display:none;}.view.active{display:block;}
+ 
+/* ── PAGE TITLE ── */
+.page-head{margin-bottom:14px;}
+.page-title{font-size:19px;font-weight:700;color:var(--navy);letter-spacing:-.3px;}
+.page-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+ 
+/* ── CARD ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:var(--sh);}
+.card-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.card-label .cdot{width:6px;height:6px;border-radius:50%;background:var(--navy);}
+ 
+/* ── FORM ── */
+.field{margin-bottom:11px;}.field:last-child{margin-bottom:0;}
+.field label{display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1.5px solid var(--border);color:var(--text);font-family:'Inter',sans-serif;font-size:15px;font-weight:500;padding:10px 12px;border-radius:var(--rs);-webkit-appearance:none;appearance:none;transition:border-color .15s;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--navy);background:#fff;}
+.field input[readonly]{color:var(--text3);font-size:12px;cursor:default;}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.total-box{background:var(--navy);color:#fff;border-radius:var(--rs);padding:10px 12px;font-size:18px;font-weight:700;min-height:44px;display:flex;align-items:center;}
+.total-box.err{background:var(--red);}
+.hint{font-size:11px;color:var(--teal);margin-top:3px;font-weight:500;}
+ 
+/* ── CHIPS ── */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;}
+.chip{font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:all .12s;}
+.chip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+ 
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:'Inter',sans-serif;font-weight:700;font-size:14px;padding:12px 18px;border:none;border-radius:var(--rs);cursor:pointer;transition:all .14s;width:100%;}
+.btn:active{transform:scale(.97);}
+.btn-navy{background:var(--navy);color:#fff;box-shadow:0 3px 10px rgba(212,45,32,.2);}
+.btn-teal{background:var(--teal);color:#fff;}
+.btn-ghost{background:#fff;color:var(--text2);border:1.5px solid var(--border);}
+.btn-red-ghost{background:#fff;color:var(--red);border:1.5px solid #FFCDD2;}
+.btn-sm{padding:9px 14px;font-size:13px;}
+.btn-xs{padding:6px 11px;font-size:12px;}
+.btn-row{display:flex;gap:9px;margin-top:12px;}
+.btn-row .btn{flex:1;}
+.btn-danger-text{background:transparent;border:none;color:var(--red);font-size:12px;font-weight:600;padding:4px 8px;cursor:pointer;font-family:'Inter',sans-serif;}
+ 
+/* ── LIST ITEMS ── */
+.list-item{background:#fff;border:1px solid var(--border);border-radius:var(--rs);padding:12px 13px;display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.li-icon{font-size:18px;flex-shrink:0;}
+.li-body{flex:1;min-width:0;}
+.li-name{font-size:14px;font-weight:600;color:var(--text);}
+.li-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+ 
+/* ── CHANTIER LIST (tab) ── */
+.ch-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:10px;box-shadow:var(--sh);cursor:pointer;display:flex;align-items:center;gap:13px;transition:all .14s;}
+.ch-card:active{transform:scale(.98);box-shadow:none;}
+.ch-card-icon{width:44px;height:44px;border-radius:10px;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.ch-card-body{flex:1;min-width:0;}
+.ch-card-name{font-size:15px;font-weight:700;color:var(--text);}
+.ch-card-meta{font-size:11px;color:var(--text3);margin-top:2px;}
+.ch-card-right{text-align:right;flex-shrink:0;}
+.ch-card-hours{font-size:17px;font-weight:700;color:var(--teal);}
+.ch-card-arrow{font-size:16px;color:var(--text3);margin-top:2px;}
+ 
+/* ── CHANTIER DETAIL ── */
+.mach-row{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--sh);}
+.mr-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.mr-icon{width:40px;height:40px;border-radius:9px;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.mr-name{font-size:14px;font-weight:700;color:var(--text);}
+.mr-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+.mr-hours{font-size:20px;font-weight:700;color:var(--teal);flex-shrink:0;}
+ 
+/* ── ENTRETIEN CARDS ── */
+.maint-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:10px;box-shadow:var(--sh);cursor:pointer;display:flex;align-items:center;gap:13px;transition:all .13s;}
+.maint-card:active{transform:scale(.98);}
+.maint-card-icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.maint-card-icon.ok{background:#E8F5E9;}.maint-card-icon.warn{background:#FFF3E0;}.maint-card-icon.alert{background:#FFEBEE;}
+.maint-card-body{flex:1;min-width:0;}
+.maint-card-name{font-size:15px;font-weight:700;color:var(--text);}
+.maint-card-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.maint-card-status{font-size:12px;font-weight:600;margin-top:4px;}
+.maint-card-status.ok{color:var(--green);}
+.maint-card-status.warn{color:var(--orange);}
+.draggable{touch-action:none;user-select:none;}
+.drag-ghost{opacity:.4;background:var(--bg2)!important;border:2px dashed var(--border)!important;border-radius:var(--r)!important;}
+.drag-over{border-top:2px solid var(--teal)!important;}
+.maint-card-status.alert{color:var(--red);}
+.maint-card-arrow{font-size:16px;color:var(--text3);flex-shrink:0;}
+ 
+/* ── MAINT DETAIL ── */
+.maint-hist-item{background:#fff;border:1px solid var(--border);border-radius:var(--rs);padding:12px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;}
+.mhi-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;flex-shrink:0;white-space:nowrap;}
+.mhi-badge.grease{background:#E8F5E9;color:#2E7D32;}
+.mhi-badge.oil{background:#FFF8E1;color:#F57F17;}
+.mhi-badge.filter{background:#E3F2FD;color:#1565C0;}
+.mhi-badge.other{background:var(--bg2);color:var(--text2);}
+.mhi-body{flex:1;min-width:0;}
+.mhi-type{font-size:13px;font-weight:600;color:var(--text);}
+.mhi-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+.mhi-del{background:none;border:none;font-size:16px;cursor:pointer;opacity:.4;flex-shrink:0;padding:4px;}
+ 
+/* ── RAPPORT ── */
+.date-hdr{background:var(--navy);color:#fff;padding:9px 13px;border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;}
+.dh-tot{color:var(--yellow);}
+.e-list{border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);margin-bottom:13px;overflow:hidden;}
+.e-item{background:#fff;padding:11px 12px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--bg2);}
+.e-item:last-child{border-bottom:none;}
+.e-badge{background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;}
+.e-body{flex:1;min-width:0;}
+.e-ch{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.e-sub{font-size:10px;color:var(--text3);}
+.e-tot{font-size:15px;font-weight:700;color:var(--teal);flex-shrink:0;}
+.e-del{background:none;border:none;font-size:16px;cursor:pointer;opacity:.45;flex-shrink:0;}
+ 
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px;}
+.stat-c{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 8px;text-align:center;box-shadow:var(--sh);}
+.stat-v{font-size:22px;font-weight:700;color:var(--navy);line-height:1;}
+.stat-u{font-size:11px;color:var(--text3);}
+.stat-l{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;}
+ 
+/* TRASH */
+.trash-sec{margin-top:18px;}
+.trash-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.trash-t{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;}
+.trash-clr{font-size:11px;color:var(--red);font-weight:600;background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;}
+.trash-item{background:#fff;border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;display:flex;align-items:center;gap:9px;margin-bottom:6px;opacity:.6;}
+.trash-restore{background:none;border:1px solid var(--border);border-radius:5px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 8px;cursor:pointer;flex-shrink:0;font-family:'Inter',sans-serif;}
+ 
+/* SETTINGS */
+.ss-block{margin-bottom:20px;}
+.ss-t{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;}
+.add-box{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-top:8px;}
+ 
+/* MODAL */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;}
+.modal-ov.open{display:flex;}
+.modal-sh{background:#fff;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + var(--safe-b));width:100%;max-height:88vh;overflow-y:auto;}
+.modal-handle{width:32px;height:4px;background:var(--bg2);border-radius:2px;margin:0 auto 14px;}
+.modal-title{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:14px;}
+ 
+/* EMPTY */
+.empty{text-align:center;padding:36px 20px;}
+.empty-i{font-size:42px;margin-bottom:10px;opacity:.35;}
+.empty-t{font-size:14px;color:var(--text3);}
+ 
+/* ALERT BANNER */
+.alert-banner{display:flex;align-items:center;gap:8px;padding:10px 13px;border-radius:var(--rs);margin-bottom:12px;font-size:13px;font-weight:600;}
+.alert-banner.warn{background:#FFF3E0;color:var(--orange);border:1px solid #FFB74D;}
+.alert-banner.alert{background:#FFEBEE;color:var(--red);border:1px solid #EF9A9A;}
+.alert-banner.ok{background:#E8F5E9;color:var(--green);border:1px solid #A5D6A7;}
+ 
+.rpt-filter{font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:8px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:all .14s;flex:1;}
+.rpt-filter.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+ 
+/* TOAST */
+.toast{position:fixed;bottom:calc(var(--nav-h) + var(--safe-b) + 10px);left:50%;transform:translateX(-50%) translateY(14px);background:var(--navy);color:#fff;font-size:13px;font-weight:600;padding:9px 18px;border-radius:30px;box-shadow:var(--shm);opacity:0;transition:all .26s;z-index:999;pointer-events:none;white-space:nowrap;border-left:3px solid var(--teal);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+ 
+<!-- TOPBAR -->
+<div class="topbar">
+  <button class="topbar-back" id="topbar-back" onclick="handleTopbarLeftBtn()">🏠</button>
+  <div class="topbar-title-block">
+    <div class="t1" id="topbar-t1">Suivi heures machines</div>
+    <div class="t2" id="topbar-t2"></div>
+  </div>
+  <button class="topbar-calc-btn" onclick="openCalculatrice()">🧮</button>
+</div>
+ 
+<!-- SCROLL -->
+<div class="scroll-area" id="scroll-area">
+ 
+  <!-- ══ SAISIE ══ -->
+  <div id="view-saisie" class="view active">
+    <div class="page-head"><div class="page-title">Nouvelle entrée</div><div class="page-sub">Enregistrement des heures</div></div>
+    <div class="card">
+      <div class="card-label"><span class="cdot"></span>Machine &amp; date</div>
+      <div class="fr">
+        <div class="field"><label>Machine</label><select id="sel-machine" onchange="onMachChange()"></select></div>
+        <div class="field"><label>Date</label><input type="date" id="inp-date" onchange="saveDraft()"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="cdot"></span>Compteurs</div>
+      <div class="fr3">
+        <div class="field"><label>Début (h)</label><input type="number" id="inp-start" step="0.1" min="0" placeholder="0.0" oninput="calcTot();saveDraft()"><div class="hint" id="hint-start"></div></div>
+        <div class="field"><label>Fin (h)</label><input type="number" id="inp-end" step="0.1" min="0" placeholder="0.0" oninput="calcTot();saveDraft()"></div>
+        <div class="field"><label>Total</label><div class="total-box" id="total-box">—</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="cdot"></span>Chantier / Destination</div>
+      <div class="chips" id="chips"></div>
+      <div class="field"><input type="text" id="inp-ch" placeholder="Autre chantier libre..." oninput="onFreeCh()"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" style="flex:0 0 50px" onclick="resetForm()">↺</button>
+      <button class="btn btn-navy" onclick="saveEntry()">✓ Enregistrer</button>
+    </div>
+  </div>
+ 
+  <!-- ══ CHANTIERS LIST ══ -->
+  <div id="view-chantiers" class="view">
+    <div class="page-head"><div class="page-title">Chantiers actifs</div><div class="page-sub">Taper pour voir le détail</div></div>
+    <div id="ch-list"></div>
+  </div>
+ 
+  <!-- chantier detail is now a modal, view kept empty for back-compat -->
+  <div id="view-ch-detail" class="view" style="display:none"></div>
+ 
+  <!-- ══ ENTRETIENS LIST ══ -->
+  <div id="view-entretiens" class="view">
+    <div class="page-head"><div class="page-title">Entretiens</div><div class="page-sub">Carnet de suivi par machine</div></div>
+    <div id="maint-list"></div>
+    <button class="btn btn-teal" onclick="openPickMachineModal()" style="margin-top:10px">+ Ajouter un carnet</button>
+  </div>
+ 
+  <!-- ══ ENTRETIEN DETAIL ══ -->
+  <div id="view-maint-detail" class="view">
+    <div id="maint-detail-content"></div>
+  </div>
+ 
+  <!-- ══ RAPPORT ══ -->
+  <div id="view-rapport" class="view">
+    <div class="page-head"><div class="page-title">Rapport 30 jours</div><div class="page-sub">30 derniers jours · purge automatique</div></div>
+    <div class="stats-row" id="stats-row"></div>
+    <!-- Filtre tri -->
+    <div style="display:flex;gap:7px;margin-bottom:14px">
+      <button class="rpt-filter on" id="rf-date" onclick="setRptFilter('date',this)">📅 Date</button>
+      <button class="rpt-filter" id="rf-machine" onclick="setRptFilter('machine',this)">🚜 Machine</button>
+      <button class="rpt-filter" id="rf-chantier" onclick="setRptFilter('chantier',this)">📍 Chantier</button>
+    </div>
+    <div id="rapport-list"></div>
+    <div class="trash-sec" id="trash-sec" style="display:none">
+      <div class="trash-hdr"><span class="trash-t">🗑 Corbeille (7 jours)</span><button class="trash-clr" onclick="emptyTrash()">Vider</button></div>
+      <div id="trash-list"></div>
+    </div>
+  </div>
+ 
+  <!-- ══ PARAMÈTRES ══ -->
+  <div id="view-params" class="view">
+    <div class="page-head"><div class="page-title">Paramètres</div><div class="page-sub">Types d'entretien</div></div>
+ 
+    <!-- Bloc info Ressources -->
+    <div style="background:#EEF2FF;border:1.5px solid #C7D2FE;border-radius:12px;padding:14px 15px;margin-bottom:18px;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:26px;flex-shrink:0;">🗄</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:#D42D20;margin-bottom:2px;">Machines &amp; Chantiers</div>
+        <div style="font-size:12px;color:#4A5878;line-height:1.4;">Gérés depuis le module <strong>Ressources entreprise</strong>.</div>
+      </div>
+      <a href="../ressources/index.html" style="flex-shrink:0;background:#D42D20;color:#fff;font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px;text-decoration:none;">Ouvrir →</a>
+    </div>
+ 
+    <!-- Machines en lecture seule -->
+    <div class="ss-block"><div class="ss-t">🚜 Machines (lecture seule)</div><div id="pm-machines"></div></div>
+    <div class="ss-block"><div class="ss-t">📍 Chantiers (lecture seule)</div><div id="pm-chantiers"></div></div>
+ 
+    <!-- Champ caché pour compatibilité JS -->
+    <div style="display:none">
+      <input type="text" id="nc-name">
+      <input type="text" id="nm-name">
+      <input type="text" id="nm-type">
+      <div class="add-box">
+ 
+      </div>
+    </div>
+    <div class="ss-block"><div class="ss-t">🔧 Types d'entretien</div><div id="pm-types"></div>
+      <div class="add-box">
+        <div class="field" style="margin-bottom:9px"><label>Nom du type</label><input type="text" id="nt-name" placeholder="Ex: Vérif. niveaux, Graissage pivot..."></div>
+        <button class="btn btn-teal btn-sm" onclick="addMaintType()">+ Ajouter type</button>
+      </div>
+    </div>
+ 
+
+ 
+  </div>
+</div>
+ 
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="nav-btn active" onclick="navTo('saisie',this)"><span class="nav-icon">✏️</span><span class="nav-label">Saisie</span><span class="nav-dot"></span></button>
+  <button class="nav-btn" onclick="navTo('chantiers',this)"><span class="nav-icon">📍</span><span class="nav-label">Chantiers</span><span class="nav-dot"></span></button>
+  <button class="nav-btn" onclick="navTo('entretiens',this)" id="nav-ent">
+    <span class="nav-badge-wrap"><span class="nav-icon">🔧</span><span class="alert-dot" id="alert-dot"></span></span>
+    <span class="nav-label">Entretiens</span><span class="nav-dot"></span>
+  </button>
+  <button class="nav-btn" onclick="navTo('rapport',this)"><span class="nav-icon">📋</span><span class="nav-label">Rapport</span><span class="nav-dot"></span></button>
+  <button class="nav-btn" onclick="navTo('params',this)"><span class="nav-icon">⚙️</span><span class="nav-label">Paramètres</span><span class="nav-dot"></span></button>
+</nav>
+ 
+<!-- MODAL: chantier detail -->
+<div class="modal-ov" id="modal-ch" onclick="closeModal('modal-ch',event)">
+  <div class="modal-sh" style="max-height:92vh">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title" id="mch-title" style="margin-bottom:0">Chantier</div>
+      <div id="mch-date-global" style="font-size:12px;color:var(--text3)"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Date partagée pour toutes les machines</div>
+    <div class="field" style="margin-bottom:16px">
+      <label>📅 Date des entrées</label>
+      <input type="date" id="mch-date" oninput="refreshChModalDate()">
+    </div>
+    <div id="mch-machines"></div>
+  </div>
+</div>
+ 
+<!-- MODAL: saisie rapide depuis chantier -->
+<div class="modal-ov" id="modal-entry" onclick="closeModal('modal-entry',event)">
+  <div class="modal-sh">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="me-title">Saisie rapide</div>
+    <div class="fr" style="margin-bottom:11px">
+      <div class="field"><label>Machine</label><select id="me-machine"></select></div>
+      <div class="field"><label>Date</label><input type="date" id="me-date"></div>
+    </div>
+    <div class="fr3" style="margin-bottom:13px">
+      <div class="field"><label>Début (h)</label><input type="number" id="me-start" step="0.1" min="0" placeholder="0.0" oninput="calcMe()"><div class="hint" id="me-hint"></div></div>
+      <div class="field"><label>Fin (h)</label><input type="number" id="me-end" step="0.1" min="0" placeholder="0.0" oninput="calcMe()"></div>
+      <div class="field"><label>Total</label><div class="total-box" id="me-total">—</div></div>
+    </div>
+    <button class="btn btn-navy" onclick="saveModalEntry()">✓ Enregistrer</button>
+    <button class="btn btn-ghost" onclick="closeModal('modal-entry')" style="margin-top:8px">Annuler</button>
+  </div>
+</div>
+ 
+<!-- MODAL: intervention -->
+<div class="modal-ov" id="modal-maint" onclick="closeModal('modal-maint',event)">
+  <div class="modal-sh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Enregistrer une intervention</div>
+    <input type="hidden" id="mi-machine">
+    <div class="fr" style="margin-bottom:11px">
+      <div class="field"><label>Type</label><select id="mi-type"></select></div>
+      <div class="field"><label>Date</label><input type="date" id="mi-date"></div>
+    </div>
+    <div class="field" style="margin-bottom:11px"><label>Heures machine (compteur)</label><input type="number" id="mi-hours" step="0.1" min="0" placeholder="0.0"></div>
+    <div class="field" style="margin-bottom:13px"><label>Note (optionnel)</label><input type="text" id="mi-note" placeholder="Produit utilisé, observation..."></div>
+    <button class="btn btn-teal" onclick="saveMaintEntry()">✓ Enregistrer intervention</button>
+    <button class="btn btn-ghost" onclick="closeModal('modal-maint')" style="margin-top:8px">Annuler</button>
+  </div>
+</div>
+ 
+<!-- MODAL: choisir une machine pour un nouveau carnet -->
+<div class="modal-ov" id="modal-pick-machine" onclick="closeModal('modal-pick-machine',event)">
+  <div class="modal-sh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Ajouter un carnet</div>
+    <div id="pick-machine-list"></div>
+  </div>
+</div>
+ 
+<div class="toast" id="toast"></div>
+ 
+<!-- OVERLAY CALCULATRICE -->
+<div class="overlay" id="overlay-calc" onclick="closeCalculatrice(event)">
+  <div class="bottom-sheet">
+    <div class="sheet-handle"></div>
+    <div class="calc-sheet-header">
+      <div class="calc-sheet-title">🧮 Calculatrice</div>
+      <button class="btn-calc-clear-hist" onclick="calcClearHistory()">🗑️</button>
+    </div>
+    <div class="calc-expr-line" id="calc-expr-line"></div>
+    <div class="calc-display" id="calc-display">0</div>
+    <div class="calc-history-box" id="calc-history-list"></div>
+    <div class="calc-grid">
+      <button class="calc-btn" onclick="calcClear()">C</button>
+      <button class="calc-btn" onclick="calcBackspace()">⌫</button>
+      <button class="calc-btn op" onclick="calcOp('/')">÷</button>
+      <button class="calc-btn op" onclick="calcOp('*')">×</button>
+      <button class="calc-btn" onclick="calcDigit('7')">7</button>
+      <button class="calc-btn" onclick="calcDigit('8')">8</button>
+      <button class="calc-btn" onclick="calcDigit('9')">9</button>
+      <button class="calc-btn op" onclick="calcOp('-')">−</button>
+      <button class="calc-btn" onclick="calcDigit('4')">4</button>
+      <button class="calc-btn" onclick="calcDigit('5')">5</button>
+      <button class="calc-btn" onclick="calcDigit('6')">6</button>
+      <button class="calc-btn op" onclick="calcOp('+')">+</button>
+      <button class="calc-btn" onclick="calcDigit('1')">1</button>
+      <button class="calc-btn" onclick="calcDigit('2')">2</button>
+      <button class="calc-btn" onclick="calcDigit('3')">3</button>
+      <button class="calc-btn eq" onclick="calcEquals()">=</button>
+      <button class="calc-btn span2" onclick="calcDigit('0')">0</button>
+      <button class="calc-btn" onclick="calcDigit('.')">.</button>
+    </div>
+  </div>
+</div>
+ 
+<script type="module">
+// ── FIREBASE ─────────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+const firebaseConfig = window.APP_CONFIG.firebase;
+const _app  = initializeApp(firebaseConfig);
+const _auth = getAuth(_app);
+const _db   = getFirestore(_app);
+
+// Auth guard
+onAuthStateChanged(_auth, user => {
+  if (!user) { window.location.href = '../login.html'; return; }
+  initApp();
+});
+
+// ── STORAGE KEYS ──
+const SK="rv6_e",MK="rv6_m",CK="rv6_chantiers_v1",DK="rv6_d",TK="rv6_t",MAINTK="rv6_mt",TYPEK="rv6_types",HK="rv6_ch_hidden",MTORDER_K="rv6_mt_order";
+const ALERT_H=15;
+let selCh="", modalChantier="", navStack=[], currentMainView="saisie";
+ 
+// ── DATA ──
+// Types d'entretien : gérés dans Paramètres du module Machines uniquement
+// Machines : lues depuis le module Ressources (rv6_m)
+function getMachines(){
+  try{
+    const s=localStorage.getItem(MK);
+    if(!s) return [];
+    const data=JSON.parse(s);
+    // Compatibilité : le module Ressources stocke {id,nom,type,...}, le module machine utilise {name,type}
+    return data.map(m=>({name:m.nom||m.name||'', type:m.type||'', def:false, id:m.id}));
+  }catch(e){return [];}
+}
+function saveMachines(m){
+  localStorage.setItem(MK,JSON.stringify(m));
+  if(_auth.currentUser){
+    setDoc(doc(_db,'ressources','machines'),{items:m,updatedAt:Date.now()})
+      .catch(e=>console.warn('Firestore saveMachines:',e));
+  }
+}
+// Machines + accessoires (module Ressources) — utilisé uniquement pour les carnets d'entretien.
+// Un accessoire est traité comme une "machine" pour le suivi entretien (même système de nom).
+function getMachinesAndAccessoires(){
+  try{
+    const s=localStorage.getItem(MK);
+    if(!s) return [];
+    const data=JSON.parse(s);
+    const list=[];
+    data.forEach(m=>{
+      const mName=m.nom||m.name||'';
+      list.push({name:mName, type:m.type||'', kind:'machine', parent:''});
+      (m.accessoires||[]).forEach(acs=>{
+        list.push({name:acs.nom||'', type:acs.type||'Accessoire', kind:'accessoire', parent:mName});
+      });
+    });
+    return list.filter(x=>x.name);
+  }catch(e){return [];}
+}
+// Chantiers : lus depuis rv6_chantiers_v1 (clé partagée — source de vérité : module Ressources)
+function migrateOldChantiers(){
+  if(localStorage.getItem('rv6_c_migrated')) return;
+  try{
+    const old=localStorage.getItem('rv6_c');
+    if(old){
+      const arr=JSON.parse(old);
+      const existing=JSON.parse(localStorage.getItem(CK)||'[]');
+      if(!existing.length && arr.length){
+        const objs=arr.map((c,i)=>typeof c==='string'?{id:'mig_'+i,nom:c,statut:'actif'}:c);
+        localStorage.setItem(CK,JSON.stringify(objs));
+      }
+    }
+  }catch(e){}
+  localStorage.setItem('rv6_c_migrated','1');
+}
+function getChantiers(){
+  try{
+    migrateOldChantiers();
+    const s=localStorage.getItem(CK);
+    return s?JSON.parse(s):[];
+  }catch(e){return [];}
+}
+function saveChantiers(c){localStorage.setItem(CK,JSON.stringify(c));}
+function getMaintTypes(){const s=localStorage.getItem(TYPEK);return s?JSON.parse(s):[];}
+function saveMaintTypes(t){
+  localStorage.setItem(TYPEK,JSON.stringify(t));
+  if(_auth.currentUser){
+    setDoc(doc(_db,'machines_types','data'),{items:t,updatedAt:Date.now()})
+      .catch(err=>console.warn('Firestore saveMaintTypes:',err));
+  }
+}
+function getEntries(){const s=localStorage.getItem(SK);if(!s)return[];let e=JSON.parse(s);const c=new Date();c.setDate(c.getDate()-30);e=e.filter(x=>new Date(x.date)>=c);localStorage.setItem(SK,JSON.stringify(e));return e;}
+function saveEntries(e){
+  // Purge locale > 30 jours
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
+  const purged = e.filter(x=>new Date(x.date)>=cutoff);
+  localStorage.setItem(SK,JSON.stringify(purged));
+  if(_auth.currentUser){
+    setDoc(doc(_db,'machines_entries','data'),{items:purged,updatedAt:Date.now()})
+      .catch(err=>console.warn('Firestore saveEntries:',err));
+  }
+}
+function getTrash(){const s=localStorage.getItem(TK);if(!s)return[];let t=JSON.parse(s);const c=new Date();c.setDate(c.getDate()-7);t=t.filter(x=>new Date(x.deletedAt)>=c);localStorage.setItem(TK,JSON.stringify(t));return t;}
+function saveTrash(t){
+  localStorage.setItem(TK,JSON.stringify(t));
+  if(_auth.currentUser){
+    setDoc(doc(_db,'machines_trash','data'),{items:t,updatedAt:Date.now()})
+      .catch(err=>console.warn('Firestore saveTrash:',err));
+  }
+}
+function getMaintEntries(){const s=localStorage.getItem(MAINTK);return s?JSON.parse(s):[];}
+function saveMaintEntries(m){
+  localStorage.setItem(MAINTK,JSON.stringify(m));
+  if(_auth.currentUser){
+    setDoc(doc(_db,'machines_entretiens','data'),{items:m,updatedAt:Date.now()})
+      .catch(e=>console.warn('Firestore saveMaintEntries:',e));
+  }
+}
+ 
+// ── DRAFT ──
+function saveDraft(){localStorage.setItem(DK,JSON.stringify({machine:document.getElementById("sel-machine").value,date:document.getElementById("inp-date").value,start:document.getElementById("inp-start").value,end:document.getElementById("inp-end").value,ch:document.getElementById("inp-ch").value,selCh}));}
+function loadDraft(){const s=localStorage.getItem(DK);if(!s)return false;const d=JSON.parse(s);if(d.date)document.getElementById("inp-date").value=d.date;if(d.start)document.getElementById("inp-start").value=d.start;if(d.end)document.getElementById("inp-end").value=d.end;if(d.ch)document.getElementById("inp-ch").value=d.ch;if(d.selCh){selCh=d.selCh;refreshChips();}if(d.machine){const sel=document.getElementById("sel-machine");[...sel.options].forEach(o=>{if(o.value===d.machine)o.selected=true;});}calcTot();return true;}
+function clearDraft(){localStorage.removeItem(DK);}
+ 
+ 
+// ── INIT géré par Firebase onAuthStateChanged ──
+
+function updateDate(){
+  if(navStack.length)return; // vue détail : son propre sous-titre ne doit pas être écrasé
+  const d=new Date();
+  const str=d.toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"});
+  document.getElementById("topbar-t2").textContent=str.charAt(0).toUpperCase()+str.slice(1);
+}
+function setToday(){document.getElementById("inp-date").value=new Date().toISOString().split("T")[0];}
+function handleTopbarLeftBtn(){
+  if(navStack.length){goBack();}
+  else{window.location.href="../index.html";}
+}
+ 
+// ── NAVIGATION ──
+function navTo(view,btn){
+  navStack=[];
+  currentMainView=view;
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("view-"+view).classList.add("active");
+  if(btn)btn.classList.add("active");
+  document.getElementById("scroll-area").scrollTop=0;
+  document.getElementById("topbar-t1").textContent="Suivi heures machines";
+  updateDate();
+  if(view==="rapport")renderRapport();
+  if(view==="chantiers")renderChList();
+  if(view==="entretiens")renderMaintList();
+  if(view==="params")renderParams();
+  if(view==="saisie"){refreshChips();refreshMachSel();}
+}
+function pushDetail(view,title,subtitle){
+  navStack.push(currentMainView);
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.getElementById("view-"+view).classList.add("active");
+  document.getElementById("scroll-area").scrollTop=0;
+  document.getElementById("topbar-t1").textContent=title;
+  document.getElementById("topbar-t2").textContent=subtitle||"";
+}
+function goBack(){
+  if(!navStack.length)return;
+  const prev=navStack.pop();
+  const btn=document.querySelector(`.nav-btn[onclick*="'${prev}'"]`);
+  navTo(prev,btn);
+}
+ 
+// ── MACHINES ──
+function refreshMachSel(){const sel=document.getElementById("sel-machine");const cur=sel.value;sel.innerHTML="";getMachines().forEach(m=>{const o=document.createElement("option");o.value=m.name;o.textContent=m.name;if(m.name===cur)o.selected=true;sel.appendChild(o);});refreshModalMachSel();}
+function refreshModalMachSel(){const sel=document.getElementById("me-machine");sel.innerHTML="";getMachines().forEach(m=>{const o=document.createElement("option");o.value=m.name;o.textContent=m.name;sel.appendChild(o);});}
+function onMachChange(){prefillStart();saveDraft();}
+ 
+// ── CHIPS ──
+function refreshChips(){const c=document.getElementById("chips");c.innerHTML="";getChantiers().forEach(ch=>{const name=typeof ch==='string'?ch:(ch.nom||ch.name||String(ch));const b=document.createElement("button");b.className="chip"+(selCh===name?" on":"");b.textContent=name;b.type="button";b.onclick=()=>{selCh=(selCh===name)?"":name;if(selCh)document.getElementById("inp-ch").value="";refreshChips();saveDraft();};c.appendChild(b);});}
+function onFreeCh(){selCh="";refreshChips();saveDraft();}
+ 
+// ── PREFILL ──
+function getMachLastHours(mName){const e=getEntries().filter(x=>x.machine===mName);if(!e.length)return null;e.sort((a,b)=>b.savedAt-a.savedAt);return e[0].end;}
+function prefillStart(){const m=document.getElementById("sel-machine").value;const h=getMachLastHours(m);const hint=document.getElementById("hint-start");if(h!==null){document.getElementById("inp-start").value=h;hint.textContent="Dernière fin : "+h+" h";calcTot();}else{document.getElementById("inp-start").value="";hint.textContent="";}}
+ 
+// ── CALC ──
+function calcTot(){const s=parseFloat(document.getElementById("inp-start").value),e=parseFloat(document.getElementById("inp-end").value),b=document.getElementById("total-box");b.className="total-box";if(!isNaN(s)&&!isNaN(e)&&e>s)b.textContent=(e-s).toFixed(1)+" h";else if(!isNaN(s)&&!isNaN(e)&&document.getElementById("inp-end").value!==""){b.textContent="Erreur";b.className="total-box err";}else b.textContent="—";}
+function calcMe(){const s=parseFloat(document.getElementById("me-start").value),e=parseFloat(document.getElementById("me-end").value),b=document.getElementById("me-total");b.className="total-box";if(!isNaN(s)&&!isNaN(e)&&e>s)b.textContent=(e-s).toFixed(1)+" h";else if(!isNaN(s)&&!isNaN(e)&&document.getElementById("me-end").value!==""){b.textContent="Erreur";b.className="total-box err";}else b.textContent="—";}
+ 
+// ── SAVE ENTRY ──
+function saveEntry(){const machine=document.getElementById("sel-machine").value,date=document.getElementById("inp-date").value,start=parseFloat(document.getElementById("inp-start").value),end=parseFloat(document.getElementById("inp-end").value),chantier=selCh||document.getElementById("inp-ch").value.trim();if(!date){toast("⚠ Date manquante");return;}if(isNaN(start)){toast("⚠ Compteur début manquant");return;}if(isNaN(end)){toast("⚠ Compteur fin manquant");return;}if(end<=start){toast("⚠ Fin > début");return;}if(!chantier){toast("⚠ Chantier manquant");return;}const total=parseFloat((end-start).toFixed(2));const entries=getEntries();entries.push({id:Date.now(),machine,date,start,end,total,chantier,savedAt:Date.now()});saveEntries(entries);unhideChMachine(chantier,machine);toast("✓ "+total+" h — "+chantier);document.getElementById("inp-start").value=end;document.getElementById("inp-end").value="";document.getElementById("inp-ch").value="";selCh="";refreshChips();document.getElementById("total-box").textContent="—";document.getElementById("hint-start").textContent="Dernière fin : "+end+" h";clearDraft();renderChList();renderRapport();checkAlertDot();}
+ 
+function saveModalEntry(){const machine=document.getElementById("me-machine").value,date=document.getElementById("me-date").value,start=parseFloat(document.getElementById("me-start").value),end=parseFloat(document.getElementById("me-end").value);if(!date||isNaN(start)||isNaN(end)||end<=start){toast("⚠ Vérifier les champs");return;}const total=parseFloat((end-start).toFixed(2));const entries=getEntries();entries.push({id:Date.now(),machine,date,start,end,total,chantier:modalChantier,savedAt:Date.now()});saveEntries(entries);unhideChMachine(modalChantier,machine);toast("✓ "+total+" h — "+modalChantier);closeModal("modal-entry");renderChDetail(modalChantier);renderChList();renderRapport();checkAlertDot();}
+ 
+function resetForm(){document.getElementById("inp-start").value="";document.getElementById("inp-end").value="";document.getElementById("inp-ch").value="";selCh="";refreshChips();const b=document.getElementById("total-box");b.textContent="—";b.className="total-box";document.getElementById("hint-start").textContent="";setToday();clearDraft();}
+ 
+// ── CHANTIER LIST ──
+const CH_ICONS=["🏗","🏠","🛣","🌿","🔧","🏢","⛏","🚧"];
+function renderChList(){
+  const entries=getEntries();
+  const el=document.getElementById("ch-list");
+  if(!entries.length){el.innerHTML='<div class="empty"><div class="empty-i">📍</div><div class="empty-t">Aucun chantier actif.</div></div>';return;}
+  const map={};
+  entries.forEach(e=>{
+    if(!map[e.chantier])map[e.chantier]={lastSaved:0,lastDate:"",machines:new Set()};
+    if(e.savedAt>map[e.chantier].lastSaved){map[e.chantier].lastSaved=e.savedAt;map[e.chantier].lastDate=e.date;}
+    map[e.chantier].machines.add(e.machine);
+  });
+  const sorted=Object.entries(map).sort((a,b)=>b[1].lastSaved-a[1].lastSaved).slice(0,3);
+  el.innerHTML=sorted.map(([ch,d])=>{
+    const hidden=getHiddenChMachines().filter(h=>h.ch===ch).map(h=>h.mach);
+    const activeMachines=[...d.machines].filter(m=>!hidden.includes(m));
+    const machPills=activeMachines.length
+      ? activeMachines.map(m=>`<span style="display:inline-flex;align-items:center;gap:5px;background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 6px 3px 9px;border-radius:5px;">${m}<button onclick="event.stopPropagation();removeMachineFromChantier('${ch}','${m}')" title="Retour au dépôt" style="background:rgba(255,255,255,.2);border:none;color:#fff;font-size:10px;width:16px;height:16px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0">✕</button></span>`).join("")
+      : `<span style="font-size:11px;color:var(--text3);font-style:italic">Aucune machine active</span>`;
+    return `<div class="ch-card" onclick="openChDetail('${ch}')">
+      <div class="ch-card-body" style="flex:1">
+        <div class="ch-card-name">${ch}</div>
+        <div style="font-size:11px;color:var(--text3);margin:3px 0 8px">Dernière entrée : ${fd(d.lastDate)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${machPills}</div>
+      </div>
+      <div style="font-size:18px;color:var(--text3);align-self:center;margin-left:8px">›</div>
+    </div>`;
+  }).join("");
+}
+function openChDetail(ch){
+  modalChantier=ch;
+  document.getElementById("mch-title").textContent="📍 "+ch;
+  document.getElementById("mch-date").value=new Date().toISOString().split("T")[0];
+  renderChModalMachines(ch);
+  document.getElementById("modal-ch").classList.add("open");
+}
+ 
+function refreshChModalDate(){renderChModalMachines(modalChantier);}
+ 
+function renderChModalMachines(ch){
+  const entries=getEntries().filter(e=>e.chantier===ch);
+  // Grouper par machine
+  const map={};
+  entries.forEach(e=>{
+    if(!map[e.machine])map[e.machine]={lastEnd:0,lastSaved:0,lastDate:""};
+    if(e.savedAt>map[e.machine].lastSaved){map[e.machine].lastEnd=e.end;map[e.machine].lastSaved=e.savedAt;map[e.machine].lastDate=e.date;}
+  });
+  const machines=Object.keys(map).length?Object.keys(map):getMachines().map(m=>m.name);
+  const el=document.getElementById("mch-machines");
+  el.innerHTML=machines.map((mach,i)=>{
+    const lastEnd=map[mach]?map[mach].lastEnd:"";
+    const lastDate=map[mach]?map[mach].lastDate:"";
+    return `<div style="background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
+        <div style="background:var(--navy);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:5px">${mach}</div>
+        ${lastDate?`<span style="font-size:11px;color:var(--text3)">Dernier compteur : <b>${lastEnd}h</b> (${fd(lastDate)})</span>`:'<span style="font-size:11px;color:var(--text3)">Première entrée</span>'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;align-items:end">
+        <div class="field"><label>Début (h)</label><input type="number" id="mch-s-${i}" step="0.1" min="0" value="${lastEnd}" placeholder="0.0" oninput="calcChRow(${i})"></div>
+        <div class="field"><label>Fin (h)</label><input type="number" id="mch-e-${i}" step="0.1" min="0" placeholder="0.0" oninput="calcChRow(${i})"></div>
+        <div class="field"><label>Total</label><div class="total-box" id="mch-t-${i}" style="font-size:16px">—</div></div>
+      </div>
+      <button class="btn btn-navy btn-sm" style="margin-top:10px" data-mach="${mach}" data-idx="${i}" onclick="saveChRow(this)">✓ Enregistrer ${mach}</button>
+    </div>`;
+  }).join("");
+}
+ 
+function calcChRow(i){
+  const s=parseFloat(document.getElementById("mch-s-"+i).value);
+  const e=parseFloat(document.getElementById("mch-e-"+i).value);
+  const b=document.getElementById("mch-t-"+i);
+  b.className="total-box";
+  if(!isNaN(s)&&!isNaN(e)&&e>s){b.textContent=(e-s).toFixed(1)+" h";}
+  else if(!isNaN(s)&&!isNaN(e)&&document.getElementById("mch-e-"+i).value!==""){b.textContent="Err";b.className="total-box err";}
+  else b.textContent="—";
+}
+ 
+function saveChRow(btn){
+  const mach=btn.dataset.mach;
+  const i=parseInt(btn.dataset.idx);
+  const ch=modalChantier;
+  const date=document.getElementById("mch-date").value;
+  const start=parseFloat(document.getElementById("mch-s-"+i).value);
+  const end=parseFloat(document.getElementById("mch-e-"+i).value);
+  if(!date){toast("⚠ Date manquante");return;}
+  if(isNaN(start)){toast("⚠ Entrer le début");return;}
+  if(isNaN(end)){toast("⚠ Entrer la fin");return;}
+  if(end<=start){toast("⚠ Fin doit être > début");return;}
+  const total=parseFloat((end-start).toFixed(2));
+  const entries=getEntries();
+  entries.push({id:Date.now(),machine:mach,date,start,end,total,chantier:ch,savedAt:Date.now()});
+  saveEntries(entries);
+  unhideChMachine(ch,mach);
+  toast("✓ "+mach+" — "+total+" h");
+  document.getElementById("mch-s-"+i).value=end;
+  document.getElementById("mch-e-"+i).value="";
+  document.getElementById("mch-t-"+i).textContent="—";
+  document.getElementById("mch-t-"+i).className="total-box";
+  renderChList();renderRapport();checkAlertDot();
+}
+ 
+function renderChDetail(ch){
+  const allEntries=getEntries().filter(e=>e.chantier===ch);
+  const hidden=getHiddenChMachines().filter(h=>h.ch===ch).map(h=>h.mach);
+  const entries=allEntries.filter(e=>!hidden.includes(e.machine));
+  const el=document.getElementById("ch-detail-content");
+  if(!entries.length){
+    el.innerHTML=allEntries.length
+      ?'<div class="empty"><div class="empty-i">👁️‍🗨️</div><div class="empty-t">Toutes les machines de ce chantier sont masquées.</div></div>'
+      :'<div class="empty"><div class="empty-i">📍</div><div class="empty-t">Aucune entrée pour ce chantier.</div></div>';
+    return;
+  }
+  // Grouper par machine
+const map={};entries.forEach(e=>{if(!map[e.machine])map[e.machine]={total:0,lastEnd:0,lastDate:"",lastSaved:0,count:0};map[e.machine].total+=e.total;map[e.machine].count++;if(e.savedAt>map[e.machine].lastSaved){map[e.machine].lastEnd=e.end;map[e.machine].lastDate=e.date;map[e.machine].lastSaved=e.savedAt;}});const totalCh=entries.reduce((s,e)=>s+e.total,0);
+el.innerHTML=`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:13px;color:var(--text3)">${entries.length} entrées · ${[...new Set(entries.map(e=>e.date))].length} jours</span><span style="font-size:22px;font-weight:700;color:var(--teal)">${totalCh.toFixed(1)} h total</span></div></div>`+
+Object.entries(map).sort((a,b)=>b[1].lastSaved-a[1].lastSaved).map(([mach,d])=>`<div class="mach-row"><div class="mr-header"><div class="mr-icon">🚜</div><div style="flex:1"><div class="mr-name">${mach}</div><div class="mr-sub">${d.count} entrée(s) · Dernière : ${fd(d.lastDate)}</div></div><div class="mr-hours">${d.total.toFixed(1)}h</div><button class="mhi-del" title="Retirer ${mach} de ce chantier" onclick="removeMachineFromChantier('${ch}','${mach}')" style="margin-left:8px">🗑</button></div><div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-radius:var(--rs);padding:8px 12px;margin-top:2px"><span style="font-size:12px;color:var(--text2)">Dernier compteur : <b>${d.lastEnd}h</b></span><button class="btn btn-navy btn-xs" onclick="openModalEntry('${ch}','${mach}',${d.lastEnd})" style="width:auto">+ Saisie rapide</button></div></div>`).join("");}
+ 
+function getHiddenChMachines(){try{return JSON.parse(localStorage.getItem(HK))||[];}catch(e){return [];}}
+function saveHiddenChMachines(list){localStorage.setItem(HK,JSON.stringify(list));}
+function isChMachineHidden(ch,mach){return getHiddenChMachines().some(h=>h.ch===ch&&h.mach===mach);}
+function unhideChMachine(ch,mach){
+  const list=getHiddenChMachines().filter(h=>!(h.ch===ch&&h.mach===mach));
+  saveHiddenChMachines(list);
+}
+ 
+function removeMachineFromChantier(ch,mach){
+  if(!confirm(`Retour au dépôt pour "${mach}" ?\nElle ne sera plus affichée comme active sur "${ch}". Les heures déjà enregistrées ne sont pas supprimées.`))return;
+  const list=getHiddenChMachines();
+  if(!list.some(h=>h.ch===ch&&h.mach===mach))list.push({ch,mach});
+  saveHiddenChMachines(list);
+  toast(`🚛 ${mach} — retour au dépôt`);
+  renderChList();
+}
+ 
+// ── MODAL ENTRY ──
+function openModalEntry(ch,machine,lastEnd){modalChantier=ch;document.getElementById("me-title").textContent="⚡ "+ch;document.getElementById("me-date").value=new Date().toISOString().split("T")[0];document.getElementById("me-start").value=lastEnd;document.getElementById("me-end").value="";document.getElementById("me-total").textContent="—";document.getElementById("me-hint").textContent="Dernier compteur : "+lastEnd+"h";const sel=document.getElementById("me-machine");[...sel.options].forEach(o=>{if(o.value===machine)o.selected=true;});document.getElementById("modal-entry").classList.add("open");}
+ 
+// ── ENTRETIEN LIST ──
+function getMachLastMaint(mName){const all=getMaintEntries().filter(m=>m.machine===mName);if(!all.length)return null;all.sort((a,b)=>b.savedAt-a.savedAt);return all[0];}
+function checkAlertDot(){let has=false;getMachines().forEach(m=>{const cur=getMachLastHours(m.name);if(cur===null)return;const last=getMachLastMaint(m.name);const since=last?cur-last.hours:cur;if(since>=ALERT_H)has=true;});document.getElementById("alert-dot").classList.toggle("show",has);}
+ 
+function getMaintStatus(mName){const cur=getMachLastHours(mName);if(cur===null)return{cls:"ok",text:"Aucune entrée heures",icon:"⚙"};const last=getMachLastMaint(mName);const since=last?cur-last.hours:null;if(since===null)return{cls:"warn",text:"Aucun entretien enregistré",icon:"🟠"};if(since>=ALERT_H*1.5)return{cls:"alert",text:"⚠ Entretien urgent — "+since.toFixed(1)+"h depuis dernier",icon:"🔴"};if(since>=ALERT_H)return{cls:"warn",text:"Entretien recommandé — "+since.toFixed(1)+"h depuis dernier",icon:"🟠"};return{cls:"ok",text:"À jour — "+since.toFixed(1)+"h depuis dernier",icon:"✅"};}
+ 
+function hasCarnet(mName){return getMaintEntries().some(x=>x.machine===mName);}
+
+// ── ORDRE MANUEL DES CARNETS ──
+function getMaintOrder(){try{return JSON.parse(localStorage.getItem(MTORDER_K))||[];}catch(e){return [];}}
+function saveMaintOrder(order){localStorage.setItem(MTORDER_K,JSON.stringify(order));}
+function sortByMaintOrder(items){
+  const order=getMaintOrder();
+  const idx=name=>{const i=order.indexOf(name);return i===-1?9999:i;};
+  return [...items].sort((a,b)=>idx(a.name)-idx(b.name));
+}
+
+function renderMaintList(){
+  const all=getMachinesAndAccessoires().filter(item=>hasCarnet(item.name));
+  const el=document.getElementById("maint-list");
+  if(!all.length){
+    el.innerHTML='<div class="empty"><div class="empty-i">🔧</div><div class="empty-t">Aucun carnet pour l\'instant. Utilise "+ Ajouter un carnet" pour en créer un.</div></div>';
+    return;
+  }
+  const items=sortByMaintOrder(all);
+  el.innerHTML=items.map(item=>{
+    const st=getMaintStatus(item.name);
+    const cur=getMachLastHours(item.name);
+    const subParts=[];
+    if(item.kind==='accessoire')subParts.push('🧰 Accessoire de '+item.parent);
+    else if(item.type)subParts.push(item.type);
+    if(cur!==null)subParts.push('Compteur : '+cur+'h');
+    return `<div class="maint-card draggable" data-id="${item.name}" onclick="openMaintDetail('${item.name}')"><div class="maint-card-icon ${st.cls}">${st.icon}</div><div class="maint-card-body"><div class="maint-card-name">Carnet — ${item.name}</div><div class="maint-card-sub">${subParts.join(' · ')}</div><div class="maint-card-status ${st.cls}">${st.text}</div></div><div class="maint-card-arrow">›</div></div>`;
+  }).join("");
+  attachMaintDragListeners();
+}
+
+// ── DRAG & DROP RÉORDONNANCEMENT (appui prolongé + glisser, identique à Ressources) ──
+let maintDragState=null;
+let maintLongPressTimer=null;
+const MAINT_LONG_PRESS_MS=450;
+
+function reorderArr(arr,fromIdx,toIdx){
+  const copy=[...arr];
+  const [item]=copy.splice(fromIdx,1);
+  copy.splice(toIdx,0,item);
+  return copy;
+}
+
+function attachMaintDragListeners(){
+  document.querySelectorAll('#maint-list .maint-card[data-id]').forEach(el=>{
+    initMaintItemDrag(el,el.dataset.id);
+  });
+}
+
+function initMaintItemDrag(el,itemName){
+  let startY,startX,moved=false;
+
+  function onLongPress(){
+    maintLongPressTimer=null;
+    el.classList.add('drag-ghost');
+    maintDragState={el,startY,startX};
+    navigator.vibrate&&navigator.vibrate(40);
+  }
+
+  el.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1)return;
+    const t=e.touches[0];
+    startY=t.clientY;startX=t.clientX;moved=false;
+    maintLongPressTimer=setTimeout(onLongPress,MAINT_LONG_PRESS_MS);
+  },{passive:true});
+
+  el.addEventListener('touchmove',e=>{
+    if(!maintDragState||maintDragState.el!==el){clearTimeout(maintLongPressTimer);return;}
+    e.preventDefault();
+    moved=true;
+    const t=e.touches[0];
+    el.style.visibility='hidden';
+    const target=document.elementFromPoint(t.clientX,t.clientY);
+    el.style.visibility='';
+    if(!target)return;
+    const targetItem=target.closest('.maint-card[data-id]');
+    document.querySelectorAll('.maint-card').forEach(i=>i.classList.remove('drag-over'));
+    if(targetItem&&targetItem!==el)targetItem.classList.add('drag-over');
+  },{passive:false});
+
+  el.addEventListener('touchend',e=>{
+    clearTimeout(maintLongPressTimer);
+    if(!maintDragState||maintDragState.el!==el){el.classList.remove('drag-ghost');return;}
+    document.querySelectorAll('.maint-card').forEach(i=>i.classList.remove('drag-over'));
+    if(moved){
+      const t=e.changedTouches[0];
+      el.style.visibility='hidden';
+      const target=document.elementFromPoint(t.clientX,t.clientY);
+      el.style.visibility='';
+      const targetItem=target&&target.closest('.maint-card[data-id]');
+      if(targetItem&&targetItem.dataset.id!==itemName){
+        const all=getMachinesAndAccessoires().filter(item=>hasCarnet(item.name));
+        const currentOrder=sortByMaintOrder(all).map(i=>i.name);
+        const fromIdx=currentOrder.indexOf(itemName);
+        const toIdx=currentOrder.indexOf(targetItem.dataset.id);
+        if(fromIdx!==-1&&toIdx!==-1){
+          saveMaintOrder(reorderArr(currentOrder,fromIdx,toIdx));
+          renderMaintList();
+          toast('✓ Ordre mis à jour');
+        }
+      }
+    }
+    el.classList.remove('drag-ghost');
+    maintDragState=null;
+  });
+
+  el.addEventListener('touchcancel',()=>{
+    clearTimeout(maintLongPressTimer);
+    el.classList.remove('drag-ghost');
+    document.querySelectorAll('.maint-card').forEach(i=>i.classList.remove('drag-over'));
+    maintDragState=null;
+  });
+}
+
+function openPickMachineModal(){
+  const remaining=getMachinesAndAccessoires().filter(item=>!hasCarnet(item.name));
+  const el=document.getElementById("pick-machine-list");
+  if(!remaining.length){
+    el.innerHTML='<div class="empty"><div class="empty-i">✅</div><div class="empty-t">Toutes les machines et accessoires ont déjà un carnet.</div></div>';
+  }else{
+    el.innerHTML=remaining.map(item=>`<button class="btn btn-navy btn-sm" style="margin-bottom:8px" onclick="selectMachineForCarnet('${item.name}')">${item.kind==='accessoire'?'🧰':'🚜'} ${item.name}${item.kind==='accessoire'?' <span style="opacity:.7;font-weight:400">— '+item.parent+'</span>':''}</button>`).join("");
+  }
+  document.getElementById("modal-pick-machine").classList.add("open");
+}
+function selectMachineForCarnet(mName){
+  closeModal("modal-pick-machine");
+  openMaintDetail(mName);
+}
+ 
+// ── ENTRETIEN DETAIL ──
+function openMaintDetail(mName){renderMaintDetail(mName);pushDetail("maint-detail","🔧 "+mName,"Carnet d'entretien");}
+function renderMaintDetail(mName){const mh=getMaintEntries().filter(x=>x.machine===mName).sort((a,b)=>b.savedAt-a.savedAt);const cur=getMachLastHours(mName);const st=getMaintStatus(mName);const el=document.getElementById("maint-detail-content");
+const bannerHtml=`<div class="alert-banner ${st.cls}" style="margin-bottom:14px">${st.icon} ${st.text}${cur!==null?" (compteur actuel : "+cur+"h)":""}</div>`;
+const histHtml=mh.length?mh.map(x=>{let bc="other";if(x.type==="Graissage")bc="grease";else if(x.type.includes("Vidange")||x.type.includes("huile"))bc="oil";else if(x.type.includes("filtre")||x.type.includes("Filtre"))bc="filter";return `<div class="maint-hist-item"><span class="mhi-badge ${bc}">${x.type}</span><div class="mhi-body"><div class="mhi-type">${x.hours}h compteur</div><div class="mhi-sub">${fdl(x.date)}${x.note?" · "+x.note:""}</div></div><button class="mhi-del" onclick="deleteMaintEntry(${x.id},'${mName}')">🗑</button></div>`;}).join(""):'<div class="empty"><div class="empty-i">🔧</div><div class="empty-t">Aucune intervention enregistrée.</div></div>';
+el.innerHTML=bannerHtml+`<button class="btn btn-teal" onclick="openModalMaint('${mName}',${cur??0})" style="margin-bottom:14px">+ Enregistrer une intervention</button>`+`<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:9px">Historique</div>`+histHtml;
+// store machine name for re-render
+document.getElementById("maint-detail-content").dataset.machine=mName;}
+ 
+function openModalMaint(mName,curH){document.getElementById("mi-machine").value=mName;document.getElementById("mi-date").value=new Date().toISOString().split("T")[0];document.getElementById("mi-hours").value=curH||"";document.getElementById("mi-note").value="";// refresh type select
+const sel=document.getElementById("mi-type");sel.innerHTML="";getMaintTypes().forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=t;sel.appendChild(o);});document.getElementById("modal-maint").classList.add("open");}
+ 
+function saveMaintEntry(){const machine=document.getElementById("mi-machine").value,type=document.getElementById("mi-type").value,date=document.getElementById("mi-date").value,hours=parseFloat(document.getElementById("mi-hours").value),note=document.getElementById("mi-note").value.trim();if(isNaN(hours)){toast("⚠ Entrer les heures compteur");return;}const maint=getMaintEntries();maint.push({id:Date.now(),machine,type,date,hours,note,savedAt:Date.now()});saveMaintEntries(maint);closeModal("modal-maint");toast("✓ "+type+" enregistré à "+hours+"h");renderMaintDetail(machine);renderMaintList();checkAlertDot();}
+ 
+function deleteMaintEntry(id,mName){const m=getMaintEntries().filter(x=>x.id!==id);saveMaintEntries(m);renderMaintDetail(mName);renderMaintList();checkAlertDot();toast("Intervention supprimée");}
+ 
+// ── RAPPORT ──
+function renderRapport(){
+  const entries=getEntries(),sr=document.getElementById("stats-row"),rl=document.getElementById("rapport-list");
+  if(!entries.length){
+    sr.innerHTML="";
+    rl.innerHTML='<div class="empty"><div class="empty-i">📋</div><div class="empty-t">Aucune entrée.</div></div>';
+    renderTrash();return;
+  }
+  // Stats globales
+  const totalH=entries.reduce((s,e)=>s+e.total,0),days=new Set(entries.map(e=>e.date)).size;
+  sr.innerHTML=`<div class="stat-c"><div class="stat-v">${totalH.toFixed(1)}<span class="stat-u">h</span></div><div class="stat-l">Total</div></div><div class="stat-c"><div class="stat-v">${days}<span class="stat-u">j</span></div><div class="stat-l">Jours</div></div><div class="stat-c"><div class="stat-v">${entries.length}<span class="stat-u">×</span></div><div class="stat-l">Entrées</div></div>`;
+ 
+  const filter=window.rptFilter||"date";
+ 
+  if(filter==="date"){
+    // Grouper par date desc
+    const bd={};entries.forEach(e=>{if(!bd[e.date])bd[e.date]=[];bd[e.date].push(e);});
+    rl.innerHTML=Object.keys(bd).sort((a,b)=>b.localeCompare(a)).map(date=>{
+      const day=bd[date].sort((a,b)=>a.savedAt-b.savedAt),dayT=day.reduce((s,e)=>s+e.total,0);
+      return grpBlock("📅 "+fdl(date),dayT.toFixed(1)+" h total",day);
+    }).join("");
+ 
+  } else if(filter==="machine"){
+    // Grouper par machine
+    const bm={};entries.forEach(e=>{if(!bm[e.machine])bm[e.machine]=[];bm[e.machine].push(e);});
+    // Trier par machine name, puis entrées par date desc
+    rl.innerHTML=Object.keys(bm).sort().map(mach=>{
+      const list=bm[mach].sort((a,b)=>b.date.localeCompare(a.date)||b.savedAt-a.savedAt);
+      const machT=list.reduce((s,e)=>s+e.total,0);
+      return grpBlock("🚜 "+mach,machT.toFixed(1)+" h total",list,true);
+    }).join("");
+ 
+  } else if(filter==="chantier"){
+    // Grouper par chantier
+    const bc={};entries.forEach(e=>{if(!bc[e.chantier])bc[e.chantier]=[];bc[e.chantier].push(e);});
+    // Trier par dernière activité desc
+    const sorted=Object.entries(bc).sort((a,b)=>Math.max(...b[1].map(x=>x.savedAt))-Math.max(...a[1].map(x=>x.savedAt)));
+    rl.innerHTML=sorted.map(([ch,list])=>{
+      const listSorted=list.sort((a,b)=>b.date.localeCompare(a.date)||b.savedAt-a.savedAt);
+      const chT=list.reduce((s,e)=>s+e.total,0);
+      return grpBlock("📍 "+ch,chT.toFixed(1)+" h total",listSorted,true);
+    }).join("");
+  }
+  renderTrash();
+}
+ 
+function grpBlock(title,subtitle,entries,showDate=false){
+  const rows=entries.map(e=>`<div class="e-item">
+    <span class="e-badge">${e.machine}</span>
+    <div class="e-body">
+      <div class="e-ch">${e.chantier}</div>
+      <div class="e-sub">${showDate?fd(e.date)+" · ":""}${e.start}h → ${e.end}h</div>
+    </div>
+    <div class="e-tot">${e.total.toFixed(1)}h</div>
+    <button class="e-del" onclick="delEntry(${e.id})">🗑</button>
+  </div>`).join("");
+  return `<div class="date-hdr"><span>${title}</span><span class="dh-tot">${subtitle}</span></div><div class="e-list">${rows}</div>`;
+}
+ 
+function setRptFilter(f,btn){
+  window.rptFilter=f;
+  document.querySelectorAll(".rpt-filter").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");
+  renderRapport();
+}
+ 
+ 
+function delEntry(id){const entries=getEntries();const item=entries.find(e=>e.id===id);if(!item)return;const t=getTrash();t.push({...item,deletedAt:new Date().toISOString()});saveTrash(t);saveEntries(entries.filter(e=>e.id!==id));toast("🗑 Déplacé en corbeille");renderRapport();renderChList();}
+function renderTrash(){const t=getTrash();const ts=document.getElementById("trash-sec"),tl=document.getElementById("trash-list");if(!t.length){ts.style.display="none";return;}ts.style.display="block";tl.innerHTML=t.map(e=>`<div class="trash-item"><span class="e-badge">${e.machine}</span><div class="e-body"><div class="e-ch">${e.chantier}</div><div class="e-sub">${e.start}h→${e.end}h · ${fd(e.date)}</div></div><button class="trash-restore" onclick="restoreEntry(${e.id})">Restaurer</button></div>`).join("");}
+function restoreEntry(id){const t=getTrash();const item=t.find(e=>e.id===id);if(!item)return;const{deletedAt,...entry}=item;const entries=getEntries();entries.push(entry);saveEntries(entries);saveTrash(t.filter(e=>e.id!==id));toast("↩ Entrée restaurée");renderRapport();renderChList();}
+function emptyTrash(){saveTrash([]);renderTrash();toast("Corbeille vidée");}
+ 
+// ── PARAMS ──
+function renderParams(){renderParamMachines();renderParamChantiers();renderParamTypes();}
+function renderParamMachines(){
+  const machines=getMachines();
+  if(!machines.length){
+    document.getElementById("pm-machines").innerHTML='<div style="color:var(--text3);font-size:12px;padding:12px 0;">Aucune machine dans Ressources entreprise.<br>Ajoutez-en depuis le module Ressources.</div>';
+    return;
+  }
+  document.getElementById("pm-machines").innerHTML=machines.map(m=>`<div class="list-item"><span class="li-icon">🚜</span><div class="li-body"><div class="li-name">${m.name}</div><div class="li-sub">${m.type||""}</div></div><span style="font-size:10px;background:var(--bg2);padding:2px 7px;border-radius:4px;color:var(--text2)">Ressources</span></div>`).join("");
+}
+function renderParamChantiers(){
+  const ch=getChantiers();
+  if(!ch.length){
+    document.getElementById("pm-chantiers").innerHTML='<div style="color:var(--text3);font-size:12px;padding:12px 0;">Aucun chantier dans Ressources entreprise.</div>';
+    return;
+  }
+  // Chantiers peut être un tableau de strings ou d'objets
+  document.getElementById("pm-chantiers").innerHTML=ch.map(c=>`<div class="list-item"><span class="li-icon">📍</span><div class="li-body"><div class="li-name">${typeof c==='string'?c:(c.nom||c.name||c)}</div></div><span style="font-size:10px;background:var(--bg2);padding:2px 7px;border-radius:4px;color:var(--text2)">Ressources</span></div>`).join("");
+}
+function renderParamTypes(){document.getElementById("pm-types").innerHTML=getMaintTypes().map((t,i)=>`<div class="list-item"><span class="li-icon">🔧</span><div class="li-body"><div class="li-name">${t}</div></div><button class="btn-danger-text" onclick="removeMaintType(${i})">Supprimer</button></div>`).join("");}
+function addMaintType(){const name=document.getElementById("nt-name").value.trim();if(!name){toast("⚠ Entrer un nom");return;}const t=getMaintTypes();if(t.find(x=>x.toLowerCase()===name.toLowerCase())){toast("Déjà existant");return;}t.push(name);saveMaintTypes(t);document.getElementById("nt-name").value="";renderParamTypes();toast("✓ Type ajouté");}
+function removeMaintType(i){const t=getMaintTypes();t.splice(i,1);saveMaintTypes(t);renderParamTypes();toast("Type supprimé");}
+ 
+// ── MODAL ──
+function closeModal(id,e){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove("open");}
+ 
+// ── UTILS ──
+function fd(d){return new Date(d+"T00:00:00").toLocaleDateString("fr-CH",{day:"2-digit",month:"2-digit",year:"2-digit"});}
+function fdl(d){return new Date(d+"T00:00:00").toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}
+function confirmReset(){
+  if(confirm("Première confirmation — Supprimer TOUTES les données ?")){
+    if(confirm("Dernière confirmation — Cette action est irréversible. Continuer ?")){
+      localStorage.clear();
+      toast("✓ Données réinitialisées");
+      setTimeout(()=>location.reload(),1200);
+    }
+  }
+}
+let tT;function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("show"),2500);}
+
+// ── SYNC FIRESTORE → localStorage ───────────────────────
+async function syncFromFirestore() {
+  try {
+    const mSnap = await getDoc(doc(_db,'ressources','machines'));
+    if(mSnap.exists()) localStorage.setItem(MK, JSON.stringify(mSnap.data().items||[]));
+    const cSnap = await getDoc(doc(_db,'chantiers','data'));
+    if(cSnap.exists()){
+      const items = cSnap.data().items||[];
+      localStorage.setItem(CK, JSON.stringify(items));
+      localStorage.setItem('rv6_c', JSON.stringify(items.filter(c=>c.statut==='actif'||!c.statut).map(c=>c.nom)));
+    }
+    const eSnap = await getDoc(doc(_db,'machines_entretiens','data'));
+    if(eSnap.exists()) localStorage.setItem(MAINTK, JSON.stringify(eSnap.data().items||[]));
+    const entrSnap = await getDoc(doc(_db,'machines_entries','data'));
+    if(entrSnap.exists()) localStorage.setItem(SK, JSON.stringify(entrSnap.data().items||[]));
+    const trashSnap = await getDoc(doc(_db,'machines_trash','data'));
+    if(trashSnap.exists()) localStorage.setItem(TK, JSON.stringify(trashSnap.data().items||[]));
+    const typesSnap = await getDoc(doc(_db,'machines_types','data'));
+    if(typesSnap.exists()) localStorage.setItem(TYPEK, JSON.stringify(typesSnap.data().items||[]));
+  } catch(e){ console.warn('Firestore sync error:',e); }
+}
+
+// ── CALCULATRICE POPUP (historique partagé avec les autres modules) ──
+let calcExpr='';
+let calcShowingResult=false;
+const CALC_HISTORY_KEY='rv6_calc_history';
+const CALC_HISTORY_MAX_DAYS=3;
+
+function calcPurgeHistory(){
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem(CALC_HISTORY_KEY))||[];}catch(e){hist=[];}
+  const limit=Date.now()-(CALC_HISTORY_MAX_DAYS*24*60*60*1000);
+  hist=hist.filter(h=>h.ts>=limit);
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify(hist));
+  return hist;
+}
+function calcGetHistory(){try{return JSON.parse(localStorage.getItem(CALC_HISTORY_KEY))||[];}catch(e){return [];}}
+function calcAddToHistory(expr,result){
+  const hist=calcGetHistory();
+  hist.unshift({expr,result,ts:Date.now()});
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify(hist.slice(0,50)));
+  calcRenderHistory();
+}
+function calcRenderHistory(){
+  const box=document.getElementById('calc-history-list');
+  if(!box)return;
+  const hist=calcGetHistory();
+  if(hist.length===0){
+    box.innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:6px 0;">Aucun calcul récent</div>';
+    return;
+  }
+  box.innerHTML=hist.map(h=>{
+    const exprDisp=h.expr.replace(/\*/g,'×').replace(/\//g,'÷');
+    return `<div class="calc-history-row" onclick="calcUseHistory('${h.result}')">
+      <span class="calc-history-expr">${exprDisp} =</span>
+      <span class="calc-history-result">${h.result}</span>
+    </div>`;
+  }).join('');
+}
+function calcUseHistory(result){
+  if(calcExpr===''||calcShowingResult){calcExpr=String(result);}
+  else{calcExpr+=String(result);}
+  calcShowingResult=false;
+  calcRefreshDisplay();
+}
+function calcClearHistory(){
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify([]));
+  calcRenderHistory();
+}
+function openCalculatrice(){
+  calcExpr='';
+  calcShowingResult=false;
+  calcPurgeHistory();
+  calcRefreshDisplay();
+  calcRenderHistory();
+  document.getElementById('overlay-calc').classList.add('open');
+}
+function closeCalculatrice(e){
+  if(e&&e.target.id!=='overlay-calc')return;
+  document.getElementById('overlay-calc').classList.remove('open');
+}
+function calcRefreshDisplay(){
+  const line=document.getElementById('calc-expr-line');
+  const d=document.getElementById('calc-display');
+  if(calcExpr===''){line.textContent='';d.textContent='0';return;}
+  line.textContent='';
+  d.textContent=calcExpr.replace(/\*/g,'×').replace(/\//g,'÷');
+}
+function calcDigit(d){
+  if(calcShowingResult){calcExpr='';calcShowingResult=false;}
+  if(d==='.'){
+    const parts=calcExpr.split(/[+\-*/]/);
+    const last=parts[parts.length-1];
+    if(last.includes('.'))return;
+    if(last==='')calcExpr+='0';
+  }
+  calcExpr+=d;
+  calcRefreshDisplay();
+}
+function calcOp(op){
+  if(calcExpr==='')return;
+  if(calcShowingResult){calcShowingResult=false;}
+  const lastChar=calcExpr.slice(-1);
+  if('+-*/'.includes(lastChar)){calcExpr=calcExpr.slice(0,-1)+op;}
+  else{calcExpr+=op;}
+  calcRefreshDisplay();
+}
+function calcClear(){calcExpr='';calcShowingResult=false;calcRefreshDisplay();}
+function calcBackspace(){
+  if(calcShowingResult){calcExpr='';calcShowingResult=false;}
+  else{calcExpr=calcExpr.slice(0,-1);}
+  calcRefreshDisplay();
+}
+function calcEquals(){
+  if(calcExpr===''||calcShowingResult)return;
+  let safeExpr=calcExpr.replace(/[+\-*/]+$/,'');
+  if(!/^[0-9.+\-*/]+$/.test(safeExpr)){calcClear();return;}
+  try{
+    const result=Function('"use strict"; return ('+safeExpr+')')();
+    if(!isFinite(result)){
+      document.getElementById('calc-expr-line').textContent='';
+      document.getElementById('calc-display').textContent='Erreur';
+      calcExpr='';
+      return;
+    }
+    const rounded=Math.round(result*100000)/100000;
+    const exprForHistory=safeExpr;
+    document.getElementById('calc-expr-line').textContent=safeExpr.replace(/\*/g,'×').replace(/\//g,'÷')+' =';
+    document.getElementById('calc-display').textContent=String(rounded);
+    calcExpr=String(rounded);
+    calcShowingResult=true;
+    calcAddToHistory(exprForHistory,rounded);
+  }catch(e){
+    document.getElementById('calc-expr-line').textContent='';
+    document.getElementById('calc-display').textContent='Erreur';
+    calcExpr='';
+    calcShowingResult=false;
+  }
+}
+
+async function initApp(){
+  await syncFromFirestore();
+  migrateOldChantiers();
+  updateDate();
+  setInterval(updateDate,60000);
+  setToday();
+  refreshMachSel();
+  refreshChips();
+  if(!loadDraft()) prefillStart();
+  renderChList();
+  renderMaintList();
+  renderRapport();
+  renderParams();
+  checkAlertDot();
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('../service-worker.js').catch(()=>{});
+}
+
+// ── EXPOSE FONCTIONS AU HTML ──────────────────────────────
+window.navTo               = navTo;
+window.goBack              = goBack;
+window.saveEntry           = saveEntry;
+window.saveModalEntry      = saveModalEntry;
+window.resetForm           = resetForm;
+window.calcTot             = calcTot;
+window.calcMe              = calcMe;
+window.onMachChange        = onMachChange;
+window.onFreeCh            = onFreeCh;
+window.openChDetail        = openChDetail;
+window.refreshChModalDate  = refreshChModalDate;
+window.calcChRow           = calcChRow;
+window.saveChRow           = saveChRow;
+window.openModalEntry      = openModalEntry;
+window.openMaintDetail     = openMaintDetail;
+window.openModalMaint      = openModalMaint;
+window.saveMaintEntry      = saveMaintEntry;
+window.deleteMaintEntry    = deleteMaintEntry;
+window.setRptFilter        = setRptFilter;
+window.delEntry            = delEntry;
+window.restoreEntry        = restoreEntry;
+window.emptyTrash          = emptyTrash;
+window.addMaintType        = addMaintType;
+window.removeMaintType     = removeMaintType;
+window.closeModal          = closeModal;
+window.confirmReset        = confirmReset;
+window.handleTopbarLeftBtn = handleTopbarLeftBtn;
+window.openCalculatrice    = openCalculatrice;
+window.closeCalculatrice   = closeCalculatrice;
+window.calcClearHistory    = calcClearHistory;
+window.calcUseHistory      = calcUseHistory;
+window.calcDigit           = calcDigit;
+window.calcOp              = calcOp;
+window.calcClear           = calcClear;
+window.calcBackspace       = calcBackspace;
+window.calcEquals          = calcEquals;
+window.removeMachineFromChantier = removeMachineFromChantier;
+window.openPickMachineModal = openPickMachineModal;
+window.selectMachineForCarnet = selectMachineForCarnet;
+</script>
+<script type="module" src="../notes.js"></script>
+</body>
+</html>

@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Coteur de plans — ProChantier</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
+<style>
+  :root{
+    --bg:#1b1d21;
+    --panel:#232629;
+    --panel-2:#2c2f34;
+    --line:#3a3e44;
+    --text:#e9e7e2;
+    --text-dim:#9ba0a6;
+    --orange:#ff6a1a;
+    --cyan:#3ecfd6;
+    --green:#7dd66a;
+    --yellow:#e8c547;
+    --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; background:var(--bg); color:var(--text); font-family:var(--sans); overflow:hidden; touch-action:none;}
+  #app{display:flex; flex-direction:column; height:100vh;}
+
+  header{
+    padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  header .brand{display:flex; flex-direction:column;}
+  header .brand b{font-size:14px;}
+  header .brand span{font-size:11px; color:var(--text-dim);}
+
+  #toolbar{
+    display:flex; gap:8px; padding:8px 10px; background:var(--panel-2);
+    border-bottom:1px solid var(--line); overflow-x:auto; flex-shrink:0;
+  }
+  .tool{
+    background:var(--panel); border:1px solid var(--line); color:var(--text-dim);
+    font-family:var(--sans); font-size:12px; font-weight:600; padding:8px 12px;
+    border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px;
+    white-space:nowrap; flex-shrink:0;
+  }
+  .tool .dot{width:7px; height:7px; border-radius:50%; background:var(--text-dim);}
+  .tool.active{color:var(--text); border-color:var(--orange);}
+  .tool.active .dot{background:var(--orange);}
+  .tool[data-color="cyan"].active{border-color:var(--cyan);}
+  .tool[data-color="cyan"].active .dot{background:var(--cyan);}
+  .tool[data-color="green"].active{border-color:var(--green);}
+  .tool[data-color="green"].active .dot{background:var(--green);}
+  .tool[data-color="yellow"].active{border-color:var(--yellow);}
+  .tool[data-color="yellow"].active .dot{background:var(--yellow);}
+  .tool[data-color="red"].active{border-color:#e5484d;}
+  .tool[data-color="red"].active .dot{background:#e5484d;}
+  .tool[data-color="purple"].active{border-color:#9d7bea;}
+  .tool[data-color="purple"].active .dot{background:#9d7bea;}
+
+  #organize-bar{
+    display:none; gap:8px; padding:8px 10px; background:var(--panel-2);
+    border-bottom:1px solid var(--line); flex-shrink:0; align-items:center; flex-wrap:wrap;
+  }
+  #organize-hint{font-size:11px; color:var(--text-dim); flex:1;}
+  #organize-bar button{
+    background:#9d7bea; color:#1c1330; border:none; font-size:12px; font-weight:700;
+    font-family:var(--sans); padding:7px 12px; border-radius:8px; cursor:pointer; white-space:nowrap;
+  }
+  #organize-bar #organize-ungroup-btn{background:var(--panel); color:var(--text-dim); border:1px solid var(--line);}
+
+  #dim-options{
+    display:none; gap:14px; padding:8px 10px; background:var(--panel-2);
+    border-bottom:1px solid var(--line); flex-shrink:0; align-items:center; flex-wrap:wrap;
+  }
+  #dim-options .seg-label{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.4px;}
+  #dim-options .seg-group{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  #dim-options .seg-btn{
+    background:transparent; border:none; color:var(--text-dim); font-size:12px; font-family:var(--sans);
+    padding:6px 12px; cursor:pointer;
+  }
+  #dim-options .seg-btn + .seg-btn{border-left:1px solid var(--line);}
+  #dim-options .seg-btn.active{background:var(--orange); color:#1a1204;}
+
+  #viewport{
+    flex:1; position:relative; background:#111214;
+    background-image: radial-gradient(circle, #23262a 1px, transparent 1px);
+    background-size: 18px 18px;
+    overflow:hidden;
+  }
+  #empty-state{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; color:var(--text-dim); text-align:center; padding:30px;
+    z-index:5;
+  }
+  #empty-state b{color:var(--text); font-size:16px;}
+  #stage-container{ position:absolute; inset:0; touch-action:none; }
+
+  #hud{
+    position:absolute; left:10px; bottom:10px; background:rgba(0,0,0,.75);
+    border:1px solid var(--orange); border-radius:8px; padding:8px 14px; display:none;
+    font-family:var(--mono); color:var(--orange); font-size:22px; letter-spacing:1px;
+    box-shadow:0 0 14px rgba(255,106,26,.25); pointer-events:none; z-index:20;
+  }
+  #hud span{font-size:11px; display:block; color:var(--text-dim); font-family:var(--sans); letter-spacing:0;}
+
+  #zoom-ctrl{
+    position:absolute; right:10px; bottom:10px; display:flex; flex-direction:column; gap:4px; z-index:20;
+  }
+  #zoom-ctrl button{
+    width:40px; height:40px; border-radius:8px; border:1px solid var(--line); background:var(--panel);
+    color:var(--text); font-size:18px; cursor:pointer;
+  }
+
+  /* ---------- Modal ---------- */
+  #modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.6); display:none;
+    align-items:flex-end; z-index:100;
+  }
+  #modal-overlay.open{display:flex;}
+  #modal-box{
+    background:var(--panel); width:100%; padding:18px 16px 26px; border-radius:16px 16px 0 0;
+    border-top:1px solid var(--line);
+  }
+  #modal-box h3{margin:0 0 4px; font-size:14px;}
+  #modal-box p{margin:0 0 14px; font-size:12px; color:var(--text-dim);}
+  #modal-box input, #modal-box textarea, #modal-box select{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    font-family:var(--sans); font-size:14px; padding:10px; border-radius:8px; margin-bottom:10px;
+  }
+  #modal-box textarea{font-family:var(--sans); resize:none; height:60px;}
+  #modal-box .row{display:flex; gap:8px;}
+  #modal-box button{flex:1; padding:10px; border-radius:6px; border:none; font-size:13px; cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand"><b>Coteur de plans</b><span id="brand-sub">ProChantier</span></div>
+  </header>
+
+  <div id="toolbar">
+    <button class="tool" data-mode="pan" data-color="default"><span class="dot"></span>Déplacer</button>
+    <button class="tool" data-mode="dimension" data-color="green"><span class="dot"></span>Coter</button>
+    <button class="tool" data-mode="note" data-color="yellow"><span class="dot"></span>Note</button>
+    <button class="tool" data-mode="delete" data-color="red"><span class="dot"></span>Supprimer</button>
+    <button class="tool" data-mode="measure" data-color="default"><span class="dot"></span>Mesurer</button>
+    <button class="tool" data-mode="organize" data-color="purple"><span class="dot"></span>Organiser</button>
+    <button class="tool" data-mode="calibrate" data-color="cyan"><span class="dot"></span>Calibrer</button>
+  </div>
+
+  <div id="organize-bar">
+    <span id="organize-hint">Glisse les plans pour les placer, tape pour en sélectionner plusieurs</span>
+    <button id="organize-group-btn" style="display:none;">Grouper</button>
+    <button id="organize-ungroup-btn" style="display:none;">Dégrouper</button>
+    <button id="organize-label-btn" style="display:none;">🏷️ Annoter le groupe</button>
+  </div>
+
+  <div id="dim-options">
+    <span class="seg-label">Angle</span>
+    <div class="seg-group" data-setting="angle">
+      <button class="seg-btn active" data-value="90">90°</button>
+      <button class="seg-btn" data-value="libre">Libre</button>
+    </div>
+    <span class="seg-label">Pose</span>
+    <div class="seg-group" data-setting="input">
+      <button class="seg-btn active" data-value="drag">Glisser</button>
+      <button class="seg-btn" data-value="points">2 points</button>
+    </div>
+    <span class="seg-label">Accroch.</span>
+    <div class="seg-group" data-setting="snap">
+      <button class="seg-btn active" data-value="off">Off</button>
+      <button class="seg-btn" data-value="on">🎯 Auto</button>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="empty-state">
+      <b id="empty-title">Chargement du plan…</b>
+      <div id="empty-sub">Le plan de ce chantier va s'afficher automatiquement.</div>
+      <button id="empty-retry-btn" onclick="location.reload()" style="display:none;margin-top:14px;padding:10px 18px;border:none;border-radius:8px;background:#3ecfd6;color:#0d1116;font-weight:700;font-family:inherit;cursor:pointer;">🔄 Réessayer</button>
+    </div>
+    <div id="stage-container"></div>
+    <div id="hud"><span id="hud-label">DISTANCE</span><span id="hud-val" style="font-size:22px; color:var(--orange);">—</span></div>
+    <div id="zoom-ctrl">
+      <button id="zoom-in">+</button>
+      <button id="zoom-out">–</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box"></div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ════════════════════════════════════════════
+// ÉTAT
+// ════════════════════════════════════════════
+let pdfDoc = null;
+let currentPageNum = 1;
+let mode = 'pan';
+let itemsByPage = {};        // {pageNum: [{id,type,p1,p2,value,label,text}]}  — p1/p2 en "espace PDF" (points, scale=1)
+let nextId = 1;
+let pageCalib = {};          // {pageNum: {ratio, pointsPerMeter, calibrationLinePt}}
+const METERS_PER_PDF_POINT = 0.0254/72;
+let dimAngleMode = '90';     // '90' | 'libre'
+let dimInputMode = 'drag';   // 'drag' | 'points'
+let snapEnabled = false;
+
+// ── Organiser : disposition libre des pages sur le tableau ──
+let pageLayout = {};        // {pageNum: {x, y, rotation}} — x,y = centre de la page
+let pageGroupId = {};       // {pageNum: groupId|null}
+let groupAnnotations = {};  // {groupId: {label}}
+let nextGroupId = 1;
+let organizeSelection = []; // pages sélectionnées en mode Organiser (pour grouper/dégrouper/annoter)
+let pending = [];            // points en cours de pose (en coordonnées "page-local" pixels d'affichage)
+let pendingPageNum = null;
+
+const DISPLAY_WIDTH = 480;
+const BASE_MULTIPLIER = 1.8;
+let currentRenderMultiplier = BASE_MULTIPLIER;
+let pagePanels = {};          // {pageNum: {group, itemsGroup, konvaImage, badgeText, pageDisplayScale, displayWidth, displayHeight, pointsPerMeter, calibrationLinePt, nativeWidth, nativeHeight}}
+
+let stage = null, mainLayer = null;
+
+const viewportEl = document.getElementById('viewport');
+const stageContainerEl = document.getElementById('stage-container');
+const hud = document.getElementById('hud');
+const hudLabel = document.getElementById('hud-label');
+const hudVal = document.getElementById('hud-val');
+
+function currentItems(){
+  if(!itemsByPage[currentPageNum]) itemsByPage[currentPageNum] = [];
+  return itemsByPage[currentPageNum];
+}
+function setActivePage(pageNum){ currentPageNum = pageNum; }
+
+// ════════════════════════════════════════════
+// STAGE KONVA — pan/zoom natif, fiable sur tous navigateurs
+// ════════════════════════════════════════════
+function initStage(){
+  stage = new Konva.Stage({
+    container: 'stage-container',
+    width: stageContainerEl.clientWidth,
+    height: stageContainerEl.clientHeight,
+    draggable: true,
+  });
+  mainLayer = new Konva.Layer();
+  stage.add(mainLayer);
+  setupPinchZoom();
+  setupOrganizeBackgroundPan();
+  window.addEventListener('resize', ()=>{
+    stage.width(stageContainerEl.clientWidth);
+    stage.height(stageContainerEl.clientHeight);
+  });
+}
+
+function setStageDraggable(on){
+  stage.draggable(on);
+}
+
+// En mode Organiser, le tableau (stage) n'est JAMAIS draggable — pour éviter
+// tout conflit avec le glisser individuel des pages (c'était la cause de la
+// "duplication" visuelle). Le pan du fond vide est donc géré ici, à la main,
+// et seulement si le tap démarre bien sur le fond (pas sur une page).
+let bgPanFrom = null;
+function setupOrganizeBackgroundPan(){
+  stage.on('mousedown touchstart', (e)=>{
+    if(mode!=='organize') return;
+    if(e.target !== stage) return; // le tap est sur une page → sa propre logique de drag prend le relais
+    const pos = stage.getPointerPosition();
+    if(!pos) return;
+    bgPanFrom = { x: pos.x - stage.x(), y: pos.y - stage.y() };
+  });
+  stage.on('mousemove touchmove', (e)=>{
+    if(mode!=='organize' || !bgPanFrom) return;
+    const pos = stage.getPointerPosition();
+    if(!pos) return;
+    stage.position({ x: pos.x - bgPanFrom.x, y: pos.y - bgPanFrom.y });
+    stage.batchDraw();
+  });
+  stage.on('mouseup touchend', ()=>{ bgPanFrom = null; });
+}
+
+// Zoom autour d'un point donné (coordonnées écran, relatives au stage), sans dérive.
+function zoomStageAtPoint(newScale, point){
+  newScale = Math.max(0.08, Math.min(20, newScale));
+  const oldScale = stage.scaleX();
+  const mousePointTo = {
+    x: (point.x - stage.x()) / oldScale,
+    y: (point.y - stage.y()) / oldScale,
+  };
+  stage.scale({x:newScale, y:newScale});
+  stage.position({
+    x: point.x - mousePointTo.x*newScale,
+    y: point.y - mousePointTo.y*newScale,
+  });
+  stage.batchDraw();
+  refreshMarkerScales();
+  maybeUpgradeQuality(newScale);
+}
+
+function zoomButton(factor){
+  const center = { x: stage.width()/2, y: stage.height()/2 };
+  zoomStageAtPoint(stage.scaleX()*factor, center);
+}
+document.getElementById('zoom-in').onclick = ()=>zoomButton(1.35);
+document.getElementById('zoom-out').onclick = ()=>zoomButton(1/1.35);
+
+// Pincement à 2 doigts — recette standard Konva.
+let pinchLastDist = 0;
+function setupPinchZoom(){
+  stage.on('touchmove', (e)=>{
+    e.evt.preventDefault();
+    const touch1 = e.evt.touches[0], touch2 = e.evt.touches[1];
+    if(touch1 && touch2){
+      setStageDraggable(false);
+      const p1 = {x:touch1.clientX, y:touch1.clientY};
+      const p2 = {x:touch2.clientX, y:touch2.clientY};
+      const dist = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+      if(!pinchLastDist){ pinchLastDist = dist; return; }
+      const rect = stageContainerEl.getBoundingClientRect();
+      const mid = { x:(p1.x+p2.x)/2 - rect.left, y:(p1.y+p2.y)/2 - rect.top };
+      const scaleBy = dist / pinchLastDist;
+      zoomStageAtPoint(stage.scaleX()*scaleBy, mid);
+      pinchLastDist = dist;
+    }
+  });
+  stage.on('touchend', ()=>{ pinchLastDist = 0; if(mode==='pan') setStageDraggable(true); });
+}
+
+// Redessine à meilleure résolution interne quand le zoom dépasse ce que la
+// résolution actuelle affiche net (texte/traits toujours nets).
+let rerenderingQuality = false;
+const MAX_RENDER_MULTIPLIER = 13; // plafond de sécurité (taille de canvas/mémoire mobile)
+async function maybeUpgradeQuality(scale){
+  const needed = Math.min(scale * BASE_MULTIPLIER, MAX_RENDER_MULTIPLIER);
+  if(needed > currentRenderMultiplier*1.15 && !rerenderingQuality){
+    currentRenderMultiplier = needed;
+    rerenderingQuality = true;
+    hud.style.display = 'block'; hudLabel.textContent=''; hudVal.textContent='🔄 Amélioration de la netteté…';
+    for(const pn of Object.keys(pagePanels)){
+      await upgradePageQuality(parseInt(pn,10));
+    }
+    hud.style.display = 'none';
+    rerenderingQuality = false;
+  }
+}
+async function upgradePageQuality(pageNum){
+  const panel = pagePanels[pageNum];
+  if(!panel) return;
+  const page = await pdfDoc.getPage(pageNum);
+  const scale = (DISPLAY_WIDTH * currentRenderMultiplier) / panel.nativeWidth;
+  const pv = page.getViewport({scale});
+  const off = document.createElement('canvas');
+  off.width = pv.width; off.height = pv.height;
+  await page.render({canvasContext: off.getContext('2d'), viewport: pv}).promise;
+  panel.konvaImage.image(off);
+  mainLayer.batchDraw();
+}
+
+// ════════════════════════════════════════════
+// CHARGEMENT DES PAGES (grille de groupes Konva)
+// ════════════════════════════════════════════
+function computeColumns(n){
+  if(n<=2) return n;
+  if(n<=6) return Math.ceil(n/2);
+  return 4;
+}
+
+async function renderAllPages(){
+  mainLayer.destroyChildren();
+  pagePanels = {};
+  const cols = computeColumns(pdfDoc.numPages);
+  const gap = 40;
+
+  // 1er passage : tailles naturelles de chaque page
+  const infos = [];
+  for(let i=1;i<=pdfDoc.numPages;i++){
+    const page = await pdfDoc.getPage(i);
+    const nv = page.getViewport({scale:1});
+    const pageDisplayScale = DISPLAY_WIDTH / nv.width;
+    infos.push({ i, page, nv, pageDisplayScale, displayHeight: nv.height*pageDisplayScale });
+  }
+  const rowMaxH = [];
+  infos.forEach((info, idx)=>{
+    const row = Math.floor(idx/cols);
+    rowMaxH[row] = Math.max(rowMaxH[row]||0, info.displayHeight);
+  });
+  const rowStartY = [];
+  let y = gap;
+  for(let r=0;r<rowMaxH.length;r++){ rowStartY[r]=y; y += rowMaxH[r]+gap+24; } // +24 : marge pour le libellé "Page N"
+
+  for(let idx=0; idx<infos.length; idx++){
+    const {i, page, nv, pageDisplayScale, displayHeight} = infos[idx];
+    const col = idx % cols, row = Math.floor(idx/cols);
+    const gx = gap + col*(DISPLAY_WIDTH+gap);
+    const gy = rowStartY[row] + 24;
+
+    const scale = (DISPLAY_WIDTH * currentRenderMultiplier) / nv.width;
+    const pv = page.getViewport({scale});
+    const off = document.createElement('canvas');
+    off.width = pv.width; off.height = pv.height;
+    await page.render({canvasContext: off.getContext('2d'), viewport: pv}).promise;
+
+    // Canevas d'échantillonnage à résolution fixe (indépendante du zoom/qualité),
+    // utilisé uniquement pour l'accrochage par analyse de pixels — coordonnées
+    // directement en espace "page-local" (0..DISPLAY_WIDTH), pas de conversion.
+    const samplePv = page.getViewport({scale: pageDisplayScale});
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = samplePv.width; sampleCanvas.height = samplePv.height;
+    await page.render({canvasContext: sampleCanvas.getContext('2d'), viewport: samplePv}).promise;
+
+    if(!pageCalib[i]){
+      const detected = await detectScaleFromPage(page);
+      if(detected) pageCalib[i] = { ratio: detected, pointsPerMeter:null, calibrationLinePt:null };
+    }
+
+    // Position par défaut = grille calculée ; si l'utilisateur a déjà déplacé/tourné
+    // cette page (mode Organiser), on respecte sa disposition.
+    const defaultCenter = { x: gx + DISPLAY_WIDTH/2, y: gy + displayHeight/2, rotation: 0 };
+    const layout = pageLayout[i] || defaultCenter;
+    if(!pageLayout[i]) pageLayout[i] = layout;
+
+    const group = new Konva.Group({
+      x: layout.x, y: layout.y, rotation: layout.rotation||0,
+      offsetX: DISPLAY_WIDTH/2, offsetY: displayHeight/2,
+    });
+
+    const hitRect = new Konva.Rect({x:0, y:0, width:DISPLAY_WIDTH, height:displayHeight, fill:'#000'});
+    group.add(hitRect);
+
+    const konvaImage = new Konva.Image({image: off, x:0, y:0, width:DISPLAY_WIDTH, height:displayHeight, listening:false});
+    group.add(konvaImage);
+
+    const selectionRect = new Konva.Rect({x:-4, y:-4, width:DISPLAY_WIDTH+8, height:displayHeight+8, stroke:'#9d7bea', strokeWidth:3, strokeScaleEnabled:false, listening:false, visible:false});
+    group.add(selectionRect);
+    const groupColorRect = new Konva.Rect({x:-9, y:-9, width:DISPLAY_WIDTH+18, height:displayHeight+18, stroke:'#9d7bea', strokeWidth:3, strokeScaleEnabled:false, listening:false, visible:false, dash:[10,6]});
+    group.add(groupColorRect);
+
+    const label = new Konva.Text({x:0, y:-20, text:'Page '+i, fontSize:11, fill:'#9ba0a6', fontFamily:'monospace', listening:false});
+    group.add(label);
+
+    const badgeW = 96, badgeH = 24;
+    const badgeGroup = new Konva.Group({x: DISPLAY_WIDTH-badgeW-4, y: displayHeight-badgeH-4});
+    const badgeBg = new Konva.Rect({width:badgeW, height:badgeH, fill:'rgba(0,0,0,.65)', stroke:'#3a3e44', strokeWidth:1, cornerRadius:5});
+    const badgeText = new Konva.Text({text:'Échelle —', fontSize:10, fill:'#9ba0a6', width:badgeW, height:badgeH, align:'center', verticalAlign:'middle', fontFamily:'sans-serif'});
+    badgeGroup.add(badgeBg); badgeGroup.add(badgeText);
+    badgeGroup.on('click tap', (e)=>{ e.cancelBubble = true; if(mode!=='organize') openScaleChooser(i); });
+    group.add(badgeGroup);
+
+    // Poignée de rotation — visible seulement en mode Organiser
+    const rotBtn = new Konva.Group({x:DISPLAY_WIDTH-20, y:20, visible:false, name:'rotate-handle'});
+    rotBtn.add(new Konva.Circle({radius:16, fill:'rgba(0,0,0,.7)', stroke:'#9d7bea', strokeWidth:1.5, strokeScaleEnabled:false}));
+    rotBtn.add(new Konva.Text({text:'⟳', fontSize:18, fill:'#fff', offsetX:6, offsetY:10}));
+    rotBtn.on('click tap', (e)=>{ e.cancelBubble = true; rotatePage(i); });
+    group.add(rotBtn);
+
+    const itemsGroup = new Konva.Group();
+    group.add(itemsGroup);
+
+    mainLayer.add(group);
+
+    pagePanels[i] = {
+      group, itemsGroup, konvaImage, badgeText, selectionRect, rotBtn, groupColorRect,
+      pageDisplayScale, displayWidth: DISPLAY_WIDTH, displayHeight,
+      pointsPerMeter: null, calibrationLinePt: null,
+      nativeWidth: nv.width, nativeHeight: nv.height,
+      sampleCtx: sampleCanvas.getContext('2d'),
+    };
+
+    applyStoredCalibForPage(i);
+    redrawPageItems(i);
+    attachPageInteraction(i, group, hitRect);
+    updatePageGroupVisual(i);
+  }
+
+  mainLayer.batchDraw();
+}
+
+// Cherche le texte du cartouche type "Ech. 1:50" / "Echelle 1:100" dans le
+// contenu texte réel de la page PDF, et renvoie le ratio (ex. 50) si trouvé.
+async function detectScaleFromPage(page){
+  try{
+    const content = await page.getTextContent();
+    const text = content.items.map(it=>it.str).join(' ');
+    const m = text.match(/Ech(?:elle)?\.?\s*1\s*[:\/]\s*(\d+(?:[.,]\d+)?)/i);
+    if(m) return parseFloat(m[1].replace(',', '.'));
+  }catch(e){ console.warn('[Coteur] Détection échelle échouée:', e); }
+  return null;
+}
+
+// ════════════════════════════════════════════
+// CALIBRATION (par page, en "par point PDF" — indépendant du zoom/résolution)
+// ════════════════════════════════════════════
+function applyStoredCalibForPage(pageNum){
+  const panel = pagePanels[pageNum];
+  if(!panel) return;
+  const stored = pageCalib[pageNum];
+  if(stored && stored.ratio){
+    panel.pointsPerMeter = 1/(METERS_PER_PDF_POINT * stored.ratio);
+    panel.calibrationLinePt = null;
+  } else if(stored && stored.pointsPerMeter){
+    panel.pointsPerMeter = stored.pointsPerMeter;
+    panel.calibrationLinePt = stored.calibrationLinePt || null;
+  } else {
+    panel.pointsPerMeter = null;
+    panel.calibrationLinePt = null;
+  }
+  updatePanelBadge(pageNum);
+}
+function updatePanelBadge(pageNum){
+  const panel = pagePanels[pageNum];
+  if(!panel) return;
+  const stored = pageCalib[pageNum];
+  let txt;
+  if(stored && stored.ratio) txt = 'Échelle 1:'+stored.ratio;
+  else if(panel.pointsPerMeter) txt = 'Échelle calibrée';
+  else txt = 'Échelle —';
+  panel.badgeText.text(txt);
+  mainLayer.batchDraw();
+}
+
+const COMMON_SCALES = [20,50,100,200,500];
+function openScaleChooser(pageNum){
+  openModal({
+    title:'Échelle de la page '+pageNum,
+    subtitle:'Indique l\'échelle imprimée sur le plan (cartouche "Ech. 1:XX") — la calibration se fait alors automatiquement, sans clic.',
+    fields:[{name:'ratio', type:'select', options:[
+      ...COMMON_SCALES.map(r=>({value:r, label:'1 : '+r})),
+      {value:'custom', label:'Autre valeur…'}
+    ]}],
+    okText:'Appliquer',
+    onSubmit:(v)=>{
+      if(v.ratio==='custom'){
+        openModal({
+          title:'Échelle personnalisée',
+          subtitle:'Le "X" du ratio 1:X imprimé sur le plan :',
+          fields:[{name:'ratio', type:'number', placeholder:'ex. 33.33', step:'any'}],
+          onSubmit:(v2)=>{
+            const r = parseFloat(v2.ratio);
+            if(!r || r<=0) return;
+            setPageScaleRatio(r, pageNum);
+          }
+        });
+      } else {
+        setPageScaleRatio(parseFloat(v.ratio), pageNum);
+      }
+    }
+  });
+}
+function setPageScaleRatio(ratio, pageNum){
+  pageCalib[pageNum] = { ratio, pointsPerMeter:null, calibrationLinePt:null };
+  applyStoredCalibForPage(pageNum);
+  redrawPageItems(pageNum);
+  notifyParent();
+}
+
+// ════════════════════════════════════════════
+// CONVERSIONS DE COORDONNÉES
+// page-local = pixels d'affichage dans le groupe Konva de la page (0..DISPLAY_WIDTH)
+// espace PDF = points natifs du PDF (scale=1), stocké et indépendant du zoom/résolution
+// ════════════════════════════════════════════
+function localToPoint(p, pageNum){
+  const panel = pagePanels[pageNum];
+  return { x: p.x/panel.pageDisplayScale, y: p.y/panel.pageDisplayScale };
+}
+function pointToLocal(p, pageNum){
+  const panel = pagePanels[pageNum];
+  return { x: p.x*panel.pageDisplayScale, y: p.y*panel.pageDisplayScale };
+}
+function dist(a,b){ return Math.hypot(b.x-a.x, b.y-a.y); }
+function formatReal(pointDist, pageNum){
+  const panel = pagePanels[pageNum];
+  const ppm = panel ? panel.pointsPerMeter : null;
+  if(!ppm){
+    const px = panel ? pointDist*panel.pageDisplayScale : pointDist;
+    return px.toFixed(0)+' px';
+  }
+  const meters = pointDist/ppm;
+  if(meters<1) return (meters*100).toFixed(1)+' cm';
+  return meters.toFixed(2)+' m';
+}
+
+// ════════════════════════════════════════════
+// ACCROCHAGE — d'abord sur les points déjà posés (extrémités des cotes/mesures
+// existantes), puis en secours par analyse des pixels du plan (recherche du
+// trait sombre le plus proche — mur, cloison...) autour du clic.
+// ════════════════════════════════════════════
+function trySnapToExistingPoint(localPt, pageNum){
+  const items = itemsByPage[pageNum]||[];
+  if(!items.length) return null;
+  const radius = 18; // pixels d'affichage, tolérance constante quel que soit le zoom
+  let best=null, bestDist=Infinity;
+  items.forEach(it=>{
+    [it.p1, it.p2].forEach(p=>{
+      if(!p) return;
+      const local = pointToLocal(p, pageNum);
+      const d = dist(local, localPt);
+      if(d<radius && d<bestDist){ bestDist=d; best=local; }
+    });
+  });
+  return best;
+}
+
+// Cherche le pixel sombre le plus proche de (cx,cy) — coordonnées "page-local"
+// (0..DISPLAY_WIDTH), directement compatibles avec le canevas d'échantillonnage.
+// Renvoie {x,y} en pixels page-local, ou null si rien de sombre à proximité.
+function findNearestDarkPixel(pageNum, cx, cy, maxRadius, threshold){
+  const panel = pagePanels[pageNum];
+  if(!panel || !panel.sampleCtx) return null;
+  const startX = Math.max(0, Math.round(cx-maxRadius));
+  const startY = Math.max(0, Math.round(cy-maxRadius));
+  const size = maxRadius*2;
+  let imgData;
+  try{ imgData = panel.sampleCtx.getImageData(startX, startY, size, size); }
+  catch(e){ return null; }
+  const data = imgData.data, w = imgData.width, h = imgData.height;
+  for(let ring=2; ring<=maxRadius; ring++){
+    const samples = Math.max(10, Math.round(ring*2));
+    let best=null, bestDist=Infinity;
+    for(let i=0;i<samples;i++){
+      const angle=(i/samples)*Math.PI*2;
+      const lx = Math.round(maxRadius + Math.cos(angle)*ring);
+      const ly = Math.round(maxRadius + Math.sin(angle)*ring);
+      if(lx<0||ly<0||lx>=w||ly>=h) continue;
+      const idx = (ly*w+lx)*4;
+      const brightness = (data[idx]+data[idx+1]+data[idx+2])/3;
+      if(data[idx+3]>10 && brightness<threshold){
+        const gx = startX+lx, gy = startY+ly;
+        const d = Math.hypot(gx-cx, gy-cy);
+        if(d<bestDist){ bestDist=d; best={x:gx, y:gy}; }
+      }
+    }
+    if(best) return best;
+  }
+  return null;
+}
+function trySnapToDarkEdge(localPt, pageNum){
+  return findNearestDarkPixel(pageNum, localPt.x, localPt.y, 22, 130);
+}
+
+// ── Extraction vectorielle réelle du PDF (liste d'opérations pdf.js) ──
+// C'est ce que pdf.js utilise en interne pour dessiner le PDF — on relit la
+// même liste pour reconstruire les vrais segments de droite, avec la même
+// pile de matrices de transformation (save/restore/transform).
+const pageSegmentsCache = {};
+function pdfMatMul(m, ctm){
+  return [
+    m[0]*ctm[0]+m[1]*ctm[2],             m[0]*ctm[1]+m[1]*ctm[3],
+    m[2]*ctm[0]+m[3]*ctm[2],             m[2]*ctm[1]+m[3]*ctm[3],
+    m[4]*ctm[0]+m[5]*ctm[2]+ctm[4],      m[4]*ctm[1]+m[5]*ctm[3]+ctm[5]
+  ];
+}
+function pdfMatApply(m, x, y){
+  return { x: m[0]*x + m[2]*y + m[4], y: m[1]*x + m[3]*y + m[5] };
+}
+async function getPageSegments(pageNum){
+  if(pageSegmentsCache[pageNum]) return pageSegmentsCache[pageNum];
+  const segments = [];
+  try{
+    const OPS = pdfjsLib.OPS;
+    if(!OPS){
+      console.error('[Coteur][Vecteur] pdfjsLib.OPS introuvable dans cette version de pdf.js — extraction impossible.');
+      pageSegmentsCache[pageNum] = [];
+      return [];
+    }
+    const page = await pdfDoc.getPage(pageNum);
+    const opList = await page.getOperatorList();
+    let ctmStack = [[1,0,0,1,0,0]];
+    const ctm = () => ctmStack[ctmStack.length-1];
+    let pathOpsCount = 0;
+
+    for(let i=0; i<opList.fnArray.length; i++){
+      const fn = opList.fnArray[i];
+      const args = opList.argsArray[i];
+
+      if(fn === OPS.save){
+        ctmStack.push(ctm().slice());
+      } else if(fn === OPS.restore){
+        if(ctmStack.length>1) ctmStack.pop();
+      } else if(fn === OPS.transform){
+        ctmStack[ctmStack.length-1] = pdfMatMul(args, ctm());
+      } else if(fn === OPS.constructPath){
+        pathOpsCount++;
+        const subOps = args[0], coords = args[1];
+        let ci=0, startX=0, startY=0, prev=null;
+        const M = ctm();
+        for(let k=0;k<subOps.length;k++){
+          const op = subOps[k];
+          if(op===OPS.moveTo){
+            const x=coords[ci++], y=coords[ci++];
+            const tp=pdfMatApply(M,x,y);
+            startX=x; startY=y; prev=tp;
+          } else if(op===OPS.lineTo){
+            const x=coords[ci++], y=coords[ci++];
+            const tp=pdfMatApply(M,x,y);
+            if(prev) segments.push({x1:prev.x, y1:prev.y, x2:tp.x, y2:tp.y});
+            prev=tp;
+          } else if(op===OPS.curveTo){
+            ci+=4; // ignore les 2 points de contrôle : les courbes ne sont pas accrochables
+            const x=coords[ci++], y=coords[ci++];
+            prev=pdfMatApply(M,x,y);
+          } else if(op===OPS.closePath){
+            const tp=pdfMatApply(M,startX,startY);
+            if(prev) segments.push({x1:prev.x, y1:prev.y, x2:tp.x, y2:tp.y});
+            prev=tp;
+          } else if(op===OPS.rectangle){
+            const rx=coords[ci++], ry=coords[ci++], rw=coords[ci++], rh=coords[ci++];
+            const p1=pdfMatApply(M,rx,ry), p2=pdfMatApply(M,rx+rw,ry), p3=pdfMatApply(M,rx+rw,ry+rh), p4=pdfMatApply(M,rx,ry+rh);
+            segments.push({x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y});
+            segments.push({x1:p2.x,y1:p2.y,x2:p3.x,y2:p3.y});
+            segments.push({x1:p3.x,y1:p3.y,x2:p4.x,y2:p4.y});
+            segments.push({x1:p4.x,y1:p4.y,x2:p1.x,y2:p1.y});
+            prev=p1;
+          }
+        }
+      }
+    }
+    console.log('[Coteur][Vecteur] page '+pageNum+' — '+opList.fnArray.length+' opérations, '+pathOpsCount+' tracés de chemin, '+segments.length+' segments extraits');
+    if(segments.length){
+      console.log('[Coteur][Vecteur] exemple (espace PDF, points) :', segments.slice(0,3));
+    } else {
+      console.warn('[Coteur][Vecteur] 0 segment — cette page est probablement une image raster (scan), pas du vectoriel exploitable.');
+    }
+  }catch(e){
+    console.error('[Coteur][Vecteur] Erreur d\'extraction:', e);
+  }
+  pageSegmentsCache[pageNum] = segments;
+  return segments;
+}
+
+function distPointToSegmentPt(p, s){
+  const dx=s.x2-s.x1, dy=s.y2-s.y1;
+  const lenSq=dx*dx+dy*dy;
+  if(lenSq<1e-9) return { d:Math.hypot(p.x-s.x1,p.y-s.y1), proj:{x:s.x1,y:s.y1} };
+  let t=((p.x-s.x1)*dx+(p.y-s.y1)*dy)/lenSq;
+  t=Math.max(0,Math.min(1,t));
+  const proj={x:s.x1+t*dx, y:s.y1+t*dy};
+  return { d:Math.hypot(p.x-proj.x, p.y-proj.y), proj };
+}
+function segmentIntersectionPt(a,b){
+  const denom=(a.x1-a.x2)*(b.y1-b.y2)-(a.y1-a.y2)*(b.x1-b.x2);
+  if(Math.abs(denom)<1e-9) return null;
+  const t=((a.x1-b.x1)*(b.y1-b.y2)-(a.y1-b.y1)*(b.x1-b.x2))/denom;
+  const u=-((a.x1-a.x2)*(a.y1-b.y1)-(a.y1-a.y2)*(a.x1-b.x1))/denom;
+  const margin=0.1;
+  if(t<-margin||t>1+margin||u<-margin||u>1+margin) return null;
+  return { x:a.x1+t*(a.x2-a.x1), y:a.y1+t*(a.y2-a.y1) };
+}
+
+// Accroche d'abord sur une intersection entre 2 traits proches (coin exact),
+// sinon sur le point le plus proche du trait le plus proche (perpendiculaire —
+// utile quand on clique à côté du mur, sur une cote décalée en parallèle).
+async function trySnapToVector(localPt, pageNum){
+  const panel = pagePanels[pageNum];
+  if(!panel) return null;
+  const segments = await getPageSegments(pageNum);
+  if(!segments.length) return null;
+  const clickPt = localToPoint(localPt, pageNum);
+  const radiusPt = 16 / panel.pageDisplayScale;
+
+  const nearby = segments.filter(s => distPointToSegmentPt(clickPt, s).d <= radiusPt);
+  if(nearby.length>=2){
+    let best=null, bestDist=Infinity;
+    for(let i=0;i<nearby.length;i++){
+      for(let j=i+1;j<nearby.length;j++){
+        const ipt = segmentIntersectionPt(nearby[i], nearby[j]);
+        if(!ipt) continue;
+        const d = Math.hypot(ipt.x-clickPt.x, ipt.y-clickPt.y);
+        if(d<bestDist && d<=radiusPt*2){ bestDist=d; best=ipt; }
+      }
+    }
+    if(best) return pointToLocal(best, pageNum);
+  }
+  let bestProj=null, bestD=Infinity;
+  segments.forEach(s=>{
+    const r = distPointToSegmentPt(clickPt, s);
+    if(r.d<radiusPt && r.d<bestD){ bestD=r.d; bestProj=r.proj; }
+  });
+  return bestProj ? pointToLocal(bestProj, pageNum) : null;
+}
+
+async function trySnap(localPt, pageNum){
+  return trySnapToExistingPoint(localPt, pageNum)
+    || await trySnapToVector(localPt, pageNum)
+    || trySnapToDarkEdge(localPt, pageNum);
+}
+
+// ════════════════════════════════════════════
+// SUPPRIMER — retire la mesure/cote/note la plus proche du clic
+// ════════════════════════════════════════════
+function distToSegmentXY(p, x1,y1,x2,y2){
+  const dx=x2-x1, dy=y2-y1;
+  const lenSq=dx*dx+dy*dy;
+  if(lenSq<1e-9) return Math.hypot(p.x-x1,p.y-y1);
+  let t=((p.x-x1)*dx+(p.y-y1)*dy)/lenSq;
+  t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p.x-(x1+t*dx), p.y-(y1+t*dy));
+}
+function deleteNearestItem(pageNum, localPt){
+  const items = itemsByPage[pageNum]||[];
+  if(!items.length) return;
+  const threshold = 20; // pixels d'affichage
+  let bestIdx=-1, bestDist=Infinity;
+  items.forEach((it,idx)=>{
+    let d;
+    if(it.type==='note'){
+      d = dist(pointToLocal(it.p1,pageNum), localPt);
+    } else {
+      const p1=pointToLocal(it.p1,pageNum), p2=pointToLocal(it.p2,pageNum);
+      d = distToSegmentXY(localPt, p1.x,p1.y,p2.x,p2.y);
+    }
+    if(d<threshold && d<bestDist){ bestDist=d; bestIdx=idx; }
+  });
+  if(bestIdx>=0){
+    items.splice(bestIdx,1);
+    redrawPageItems(pageNum);
+    notifyParent();
+  }
+}
+
+// ════════════════════════════════════════════
+// ORGANISER — tourner / déplacer / grouper / annoter les pages sur le tableau
+// ════════════════════════════════════════════
+function rotatePage(pageNum){
+  const panel = pagePanels[pageNum];
+  if(!panel) return;
+  const newRot = ((panel.group.rotation()||0) + 90) % 360;
+  panel.group.rotation(newRot);
+  pageLayout[pageNum] = { x:panel.group.x(), y:panel.group.y(), rotation:newRot };
+  mainLayer.batchDraw();
+  renderGroupAnnotations();
+  notifyParent();
+}
+
+function toggleOrganizeSelection(pageNum){
+  const idx = organizeSelection.indexOf(pageNum);
+  if(idx>=0) organizeSelection.splice(idx,1);
+  else organizeSelection.push(pageNum);
+  pagePanels[pageNum].selectionRect.visible(organizeSelection.includes(pageNum));
+  mainLayer.batchDraw();
+  updateOrganizeBar();
+}
+function clearOrganizeSelection(){
+  organizeSelection.forEach(pn=>{ if(pagePanels[pn]) pagePanels[pn].selectionRect.visible(false); });
+  organizeSelection = [];
+  mainLayer.batchDraw();
+  updateOrganizeBar();
+}
+function updateOrganizeBar(){
+  const groupBtn = document.getElementById('organize-group-btn');
+  const ungroupBtn = document.getElementById('organize-ungroup-btn');
+  const labelBtn = document.getElementById('organize-label-btn');
+  const hint = document.getElementById('organize-hint');
+  if(organizeSelection.length===0){
+    groupBtn.style.display='none'; ungroupBtn.style.display='none'; labelBtn.style.display='none';
+    hint.style.display='';
+    return;
+  }
+  hint.style.display='none';
+  const firstGid = pageGroupId[organizeSelection[0]];
+  const allSameGroup = firstGid && organizeSelection.every(pn=>pageGroupId[pn]===firstGid);
+  const anyGrouped = organizeSelection.some(pn=>pageGroupId[pn]);
+  groupBtn.style.display = organizeSelection.length>=2 ? 'inline-block' : 'none';
+  ungroupBtn.style.display = anyGrouped ? 'inline-block' : 'none';
+  labelBtn.style.display = allSameGroup ? 'inline-block' : 'none';
+}
+const GROUP_COLORS = [
+  {value:'#e5484d', label:'🔴 Rouge'},
+  {value:'#f5a623', label:'🟠 Orange'},
+  {value:'#f0c318', label:'🟡 Jaune'},
+  {value:'#4caf50', label:'🟢 Vert'},
+  {value:'#3ecfd6', label:'🔵 Cyan'},
+  {value:'#5b8def', label:'🔵 Bleu'},
+  {value:'#9d7bea', label:'🟣 Violet'},
+];
+
+document.getElementById('organize-group-btn').onclick = ()=>{
+  const gid = 'g'+(nextGroupId++);
+  organizeSelection.forEach(pn=>{ pageGroupId[pn]=gid; });
+  groupAnnotations[gid] = { label:'', color:'#9d7bea' };
+  updateOrganizeBar();
+  updateAllPageGroupVisuals();
+  notifyParent();
+};
+document.getElementById('organize-ungroup-btn').onclick = ()=>{
+  organizeSelection.forEach(pn=>{ pageGroupId[pn]=null; });
+  const gids = new Set(Object.values(pageGroupId));
+  Object.keys(groupAnnotations).forEach(gid=>{ if(!gids.has(gid)) delete groupAnnotations[gid]; });
+  renderGroupAnnotations();
+  updateOrganizeBar();
+  updateAllPageGroupVisuals();
+  notifyParent();
+};
+document.getElementById('organize-label-btn').onclick = ()=>{
+  const gid = pageGroupId[organizeSelection[0]];
+  if(!gid) return;
+  const current = groupAnnotations[gid] || { label:'', color:'#9d7bea' };
+  openModal({
+    title:'Personnaliser le groupe',
+    subtitle:'Nom et couleur affichés pour repérer ce groupe sur le tableau.',
+    fields:[
+      {name:'label', type:'text', placeholder:'ex. Étage 1 — sous-sol'},
+      {name:'color', type:'select', options: GROUP_COLORS.map(c=>({...c, selected:c.value===current.color}))}
+    ],
+    onSubmit:(v)=>{
+      groupAnnotations[gid] = { label: v.label||'', color: v.color||'#9d7bea' };
+      renderGroupAnnotations();
+      updateAllPageGroupVisuals();
+      notifyParent();
+    }
+  });
+};
+
+// Affiche le contour coloré (permanent tant qu'on est en mode Organiser) qui
+// identifie visuellement à quel groupe une page appartient.
+function updatePageGroupVisual(pageNum){
+  const panel = pagePanels[pageNum];
+  if(!panel) return;
+  const gid = pageGroupId[pageNum];
+  if(gid){
+    const color = (groupAnnotations[gid] && groupAnnotations[gid].color) || '#9d7bea';
+    panel.groupColorRect.stroke(color);
+    panel.groupColorRect.visible(mode==='organize');
+  } else {
+    panel.groupColorRect.visible(false);
+  }
+}
+function updateAllPageGroupVisuals(){
+  Object.keys(pagePanels).forEach(pn=>updatePageGroupVisual(parseInt(pn,10)));
+  mainLayer.batchDraw();
+}
+
+function renderGroupAnnotations(){
+  mainLayer.find('.group-annotation').forEach(n=>n.destroy());
+  const groups = {};
+  Object.keys(pageGroupId).forEach(pnStr=>{
+    const pn = parseInt(pnStr,10);
+    const gid = pageGroupId[pn];
+    if(!gid) return;
+    (groups[gid] = groups[gid]||[]).push(pn);
+  });
+  Object.keys(groups).forEach(gid=>{
+    const ann = groupAnnotations[gid];
+    if(!ann || !ann.label) return;
+    let minX=Infinity, minY=Infinity, maxX=-Infinity;
+    groups[gid].forEach(pn=>{
+      const panel = pagePanels[pn];
+      if(!panel) return;
+      const box = panel.group.getClientRect({relativeTo: mainLayer});
+      minX = Math.min(minX, box.x); maxX = Math.max(maxX, box.x+box.width);
+      minY = Math.min(minY, box.y);
+    });
+    if(minX===Infinity) return;
+    const t = new Konva.Text({
+      x:(minX+maxX)/2, y:minY-30, text:ann.label, fontSize:14, fontStyle:'bold',
+      fill:'#9d7bea', fontFamily:'sans-serif', name:'group-annotation', listening:false
+    });
+    t.offsetX(t.width()/2);
+    mainLayer.add(t);
+  });
+  mainLayer.batchDraw();
+}
+
+// Active/désactive le mode Organiser sur toutes les pages (glisser, poignée de rotation)
+function setOrganizeMode(on){
+  Object.values(pagePanels).forEach(panel=>{
+    panel.group.draggable(on);
+    panel.rotBtn.visible(on);
+  });
+  if(!on) clearOrganizeSelection();
+  document.getElementById('organize-bar').style.display = on ? 'flex' : 'none';
+  updateAllPageGroupVisuals();
+  mainLayer.batchDraw();
+}
+
+function onPageDragStart(pageNum){
+  const panel = pagePanels[pageNum];
+  panel.group.__dragMoved = false;
+  panel.group.__dragOrigin = {x:panel.group.x(), y:panel.group.y()};
+  const gid = pageGroupId[pageNum];
+  panel.group.__groupOrigins = null;
+  if(gid){
+    const origins = {};
+    Object.keys(pageGroupId).forEach(pnStr=>{
+      const pn = parseInt(pnStr,10);
+      if(pn!==pageNum && pageGroupId[pn]===gid && pagePanels[pn]) origins[pn] = {x:pagePanels[pn].group.x(), y:pagePanels[pn].group.y()};
+    });
+    panel.group.__groupOrigins = origins;
+  }
+}
+function onPageDragMove(pageNum){
+  const panel = pagePanels[pageNum];
+  panel.group.__dragMoved = true;
+  if(panel.group.__groupOrigins){
+    const dx = panel.group.x()-panel.group.__dragOrigin.x;
+    const dy = panel.group.y()-panel.group.__dragOrigin.y;
+    Object.keys(panel.group.__groupOrigins).forEach(pnStr=>{
+      const pn = parseInt(pnStr,10);
+      const origin = panel.group.__groupOrigins[pn];
+      pagePanels[pn].group.position({x:origin.x+dx, y:origin.y+dy});
+    });
+  }
+  mainLayer.batchDraw();
+}
+function onPageDragEnd(pageNum){
+  const panel = pagePanels[pageNum];
+  const gid = pageGroupId[pageNum];
+  Object.keys(pagePanels).forEach(pnStr=>{
+    const pn = parseInt(pnStr,10);
+    if(pn===pageNum || (gid && pageGroupId[pn]===gid)){
+      const p = pagePanels[pn].group;
+      pageLayout[pn] = { x:p.x(), y:p.y(), rotation:p.rotation()||0 };
+    }
+  });
+  renderGroupAnnotations();
+  notifyParent();
+  setTimeout(()=>{ panel.group.__dragMoved = false; }, 50);
+}
+
+// ════════════════════════════════════════════
+// DESSIN DES ÉLÉMENTS (mesures / cotes / notes) — vraies formes Konva, pas de
+// canvas brut à redessiner à la main.
+// ════════════════════════════════════════════
+function redrawPageItems(pageNum){
+  const panel = pagePanels[pageNum];
+  if(!panel) return;
+  panel.itemsGroup.destroyChildren();
+
+  if(panel.calibrationLinePt){
+    drawLineShape(panel.itemsGroup, pointToLocal(panel.calibrationLinePt.p1,pageNum), pointToLocal(panel.calibrationLinePt.p2,pageNum), '#3ecfd6', true);
+  }
+  (itemsByPage[pageNum]||[]).forEach(it=>{
+    if(it.type==='measure'){
+      const p1=pointToLocal(it.p1,pageNum), p2=pointToLocal(it.p2,pageNum);
+      drawLineShape(panel.itemsGroup, p1, p2, 'rgba(255,255,255,0.6)', true, formatReal(it.value,pageNum));
+    } else if(it.type==='dimension'){
+      const p1=pointToLocal(it.p1,pageNum), p2=pointToLocal(it.p2,pageNum);
+      drawDimensionShape(panel.itemsGroup, p1, p2, '#7dd66a', formatReal(it.value,pageNum));
+    } else if(it.type==='note'){
+      const p1=pointToLocal(it.p1,pageNum);
+      drawNoteShape(panel.itemsGroup, p1, '#e8c547', it.id, pageNum);
+    }
+  });
+  mainLayer.batchDraw();
+}
+
+// Taille des pastilles/étiquettes à l'écran, indépendante du niveau de zoom
+// (comme sur un vrai logiciel de CAO — un point reste petit et précis, même
+// très zoomé, seule la position doit être exacte).
+function markerScale(){ return stage ? 1/stage.scaleX() : 1; }
+
+function drawPointMarker(groupParent, x, y, color, radius){
+  const c = new Konva.Circle({x, y, radius: radius||4, fill:color, listening:false});
+  c.scale({x:markerScale(), y:markerScale()});
+  groupParent.add(c);
+  return c;
+}
+
+function drawLabelShape(groupParent, x, y, text, color){
+  const t = new Konva.Text({text, fontSize:12, fontFamily:'monospace', fontStyle:'600', fill:color, padding:5, listening:false});
+  const w = t.width(), h = t.height();
+  t.offsetX(w/2); t.offsetY(h/2);
+  const bg = new Konva.Rect({
+    x:-w/2, y:-h/2, width:w, height:h,
+    fill:'rgba(20,20,22,0.85)', stroke:color, strokeWidth:1, cornerRadius:3, listening:false
+  });
+  const lg = new Konva.Group({x, y, name:'ui-marker'});
+  lg.add(bg); lg.add(t);
+  lg.scale({x:markerScale(), y:markerScale()});
+  groupParent.add(lg);
+}
+
+function drawLineShape(groupParent, p1, p2, color, dashed, label){
+  const line = new Konva.Line({ points:[p1.x,p1.y,p2.x,p2.y], stroke:color, strokeWidth:1.5, strokeScaleEnabled:false, dash: dashed?[6,5]:undefined, listening:false });
+  groupParent.add(line);
+  [p1,p2].forEach(p=>drawPointMarker(groupParent, p.x, p.y, color, 3));
+  if(label) drawLabelShape(groupParent, (p1.x+p2.x)/2, (p1.y+p2.y)/2, label, color);
+}
+
+function drawDimensionShape(groupParent, p1, p2, color, valLabel){
+  const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+  const tick = 6 / markerScale(); // longueur de la moustache en pixels écran constants, quel que soit le zoom
+  [p1,p2].forEach(p=>{
+    groupParent.add(new Konva.Line({
+      points:[ p.x-Math.sin(angle)*tick, p.y+Math.cos(angle)*tick, p.x+Math.sin(angle)*tick, p.y-Math.cos(angle)*tick ],
+      stroke:color, strokeWidth:1, strokeScaleEnabled:false, listening:false
+    }));
+  });
+  groupParent.add(new Konva.Line({ points:[p1.x,p1.y,p2.x,p2.y], stroke:color, strokeWidth:1, strokeScaleEnabled:false, listening:false }));
+  [p1,p2].forEach(p=>drawPointMarker(groupParent, p.x, p.y, color, 2.5));
+  drawLabelShape(groupParent, (p1.x+p2.x)/2, (p1.y+p2.y)/2, valLabel, color);
+}
+
+function drawNoteShape(groupParent, p, color, id, pageNum){
+  const idx = (itemsByPage[pageNum]||[]).filter(i=>i.type==='note').findIndex(i=>i.id===id)+1;
+  const ng = new Konva.Group({x:p.x, y:p.y, name:'ui-marker'});
+  ng.add(new Konva.Circle({x:0, y:0, radius:11, fill:color, listening:false}));
+  const t = new Konva.Text({text:String(idx), fontSize:11, fontStyle:'bold', fill:'#1b1d21', fontFamily:'sans-serif', listening:false});
+  t.offsetX(t.width()/2); t.offsetY(t.height()/2);
+  t.x(0); t.y(1);
+  ng.add(t);
+  ng.scale({x:markerScale(), y:markerScale()});
+  groupParent.add(ng);
+}
+
+// Point/ligne "en cours de pose" (aperçu live pendant le glisser ou entre 2 taps)
+let liveShape = null;
+function clearLivePreview(){
+  if(liveShape){ liveShape.destroy(); liveShape=null; mainLayer.batchDraw(); }
+}
+function drawLivePreview(pageNum, p1, p2){
+  clearLivePreview();
+  const panel = pagePanels[pageNum];
+  const color = mode==='calibrate' ? '#3ecfd6' : (mode==='dimension' ? '#7dd66a' : 'rgba(255,106,26,0.9)');
+  liveShape = new Konva.Group();
+  liveShape.add(new Konva.Line({points:[p1.x,p1.y,p2.x,p2.y], stroke:color, strokeWidth:2, dash: mode!=='dimension'?[6,5]:undefined, listening:false}));
+  drawPointMarker(liveShape, p2.x, p2.y, color, 4);
+  panel.itemsGroup.add(liveShape);
+  mainLayer.batchDraw();
+}
+function drawPendingDot(pageNum, p){
+  clearLivePreview();
+  const panel = pagePanels[pageNum];
+  const color = mode==='dimension' ? '#7dd66a' : 'rgba(255,106,26,0.9)';
+  liveShape = new Konva.Group();
+  drawPointMarker(liveShape, p.x, p.y, color, 5);
+  panel.itemsGroup.add(liveShape);
+  mainLayer.batchDraw();
+}
+
+// Recale la taille de toutes les pastilles/étiquettes déjà posées après un zoom,
+// pour qu'elles restent petites et précises à l'écran quel que soit le niveau de zoom.
+function refreshMarkerScales(){
+  const s = markerScale();
+  Object.values(pagePanels).forEach(panel=>{
+    panel.itemsGroup.find('Circle').forEach(c=>c.scale({x:s, y:s}));
+    panel.itemsGroup.find('.ui-marker').forEach(g=>g.scale({x:s, y:s}));
+  });
+  mainLayer.batchDraw();
+  scheduleFullItemsRedraw();
+}
+
+// Les pastilles/étiquettes se réajustent instantanément (léger, fluide pendant le
+// geste), mais les moustaches des cotes sont "gravées" dans les points du trait à
+// la création — on les recalcule précisément une fois le zoom stabilisé, pour
+// qu'elles restent fines et correctes à n'importe quel niveau de zoom.
+let fullRedrawTimer = null;
+function scheduleFullItemsRedraw(){
+  clearTimeout(fullRedrawTimer);
+  fullRedrawTimer = setTimeout(()=>{
+    Object.keys(pagePanels).forEach(pn=>redrawPageItems(parseInt(pn,10)));
+  }, 150);
+}
+
+// ════════════════════════════════════════════
+// INTERACTION PAR PAGE
+// ════════════════════════════════════════════
+function applyAngleSnap(p1, p2){
+  if(dimAngleMode !== '90') return p2;
+  const dx = Math.abs(p2.x-p1.x), dy = Math.abs(p2.y-p1.y);
+  return dx >= dy ? {x:p2.x, y:p1.y} : {x:p1.x, y:p2.y};
+}
+
+function finalizeMeasure(pageNum, p1local, p2local){
+  const p1 = localToPoint(p1local,pageNum), p2 = localToPoint(p2local,pageNum);
+  (itemsByPage[pageNum]=itemsByPage[pageNum]||[]).push({id:nextId++, type:'measure', p1, p2, value:dist(p1,p2)});
+  clearLivePreview(); redrawPageItems(pageNum); notifyParent();
+}
+function finalizeDimension(pageNum, p1local, p2local){
+  const p1 = localToPoint(p1local,pageNum), p2 = localToPoint(p2local,pageNum);
+  (itemsByPage[pageNum]=itemsByPage[pageNum]||[]).push({id:nextId++, type:'dimension', p1, p2, value:dist(p1,p2), label:''});
+  clearLivePreview(); redrawPageItems(pageNum); notifyParent();
+}
+
+let dragging = false;
+let dragStartLocal = null;
+
+function attachPageInteraction(pageNum, group, hitRect){
+  group.on('dragstart', (e)=>{
+    if(mode!=='organize') return;
+    e.cancelBubble = true;
+    onPageDragStart(pageNum);
+  });
+  group.on('dragmove', (e)=>{ if(mode==='organize'){ e.cancelBubble=true; onPageDragMove(pageNum); } });
+  group.on('dragend', (e)=>{
+    if(mode!=='organize') return;
+    e.cancelBubble = true;
+    onPageDragEnd(pageNum);
+  });
+
+  group.on('mousedown touchstart', async (e)=>{
+    if(mode==='pan') return;
+    if(mode==='organize') return; // le glisser Konva natif s'en charge ; la sélection est gérée par 'click tap'
+
+    if(mode==='delete'){
+      e.evt.preventDefault();
+      e.cancelBubble = true;
+      const localPt = group.getRelativePointerPosition();
+      deleteNearestItem(pageNum, localPt);
+      return;
+    }
+
+    e.evt.preventDefault();
+    e.cancelBubble = true;
+    if(pendingPageNum !== pageNum){ pending=[]; clearLivePreview(); }
+    pendingPageNum = pageNum;
+    setActivePage(pageNum);
+    let localRaw = group.getRelativePointerPosition();
+    let local = localRaw;
+    let snapped = false;
+    if(snapEnabled && (mode==='measure'||mode==='dimension')){
+      const s = await trySnap(localRaw, pageNum);
+      if(s){ local = s; snapped = true; }
+    }
+
+    if(mode==='note'){
+      openModal({
+        title:'Nouvelle note',
+        fields:[{name:'text', type:'textarea', placeholder:'Remarque chantier…'}],
+        onSubmit:(v)=>{
+          if(!v.text) return;
+          const p1 = localToPoint(local, pageNum);
+          (itemsByPage[pageNum]=itemsByPage[pageNum]||[]).push({id:nextId++, type:'note', p1, text:v.text});
+          redrawPageItems(pageNum); notifyParent();
+        }
+      });
+      return;
+    }
+
+    if((mode==='measure'||mode==='dimension') && dimInputMode==='points'){
+      if(pending.length===0){
+        pending=[local];
+        pendingToolMode = mode;
+        drawPendingDot(pageNum, local);
+      } else {
+        const p1 = pending[0];
+        const p2 = applyAngleSnap(p1, local);
+        pending=[];
+        pendingToolMode = null;
+        hud.style.display='none';
+        if(mode==='measure') finalizeMeasure(pageNum, p1, p2); else finalizeDimension(pageNum, p1, p2);
+      }
+      return;
+    }
+
+    dragging = true;
+    dragStartLocal = local;
+    pending = [local];
+  });
+
+  group.on('mousemove touchmove', (e)=>{
+    if(mode==='pan' || mode==='note') return;
+    if(pendingPageNum !== pageNum) return;
+    if(dimInputMode==='drag' && !dragging) return;
+    if(pending.length===0) return;
+    e.evt.preventDefault();
+    const raw = group.getRelativePointerPosition();
+    const p = (mode==='measure'||mode==='dimension') ? applyAngleSnap(pending[0], raw) : raw;
+    drawLivePreview(pageNum, pending[0], p);
+    hud.style.display='block';
+    if(mode==='calibrate'){
+      hudLabel.textContent='LONGUEUR (px)';
+      hudVal.textContent = dist(pending[0],p).toFixed(0)+' px';
+    } else {
+      hudLabel.textContent='DISTANCE';
+      hudVal.textContent = formatReal(dist(localToPoint(pending[0],pageNum), localToPoint(p,pageNum)), pageNum);
+    }
+  });
+
+  group.on('mouseup touchend', async (e)=>{
+    if(mode==='pan' || mode==='note') return;
+    if((mode==='measure'||mode==='dimension') && dimInputMode==='points') return;
+    if(!dragging || pending.length===0) return;
+    dragging = false;
+    hud.style.display='none';
+    const raw = group.getRelativePointerPosition();
+    const p1 = pending[0];
+    pending = [];
+    if(dist(p1,raw) < 4){ clearLivePreview(); return; }
+
+    let p2 = raw, snapped = false;
+    if(snapEnabled && (mode==='measure'||mode==='dimension')){
+      const s = await trySnap(raw, pageNum);
+      if(s){ p2 = s; snapped = true; }
+    }
+    if(mode==='measure'||mode==='dimension') p2 = applyAngleSnap(p1, p2);
+
+    if(mode==='calibrate'){
+      const pxDist = dist(p1,p2); // en pixels page-local (affichage)
+      const pointDist = pxDist / pagePanels[pageNum].pageDisplayScale;
+      openModal({
+        title:'Calibration',
+        subtitle:'Distance réelle entre ces 2 points (en mètres) :',
+        fields:[{name:'meters', type:'number', placeholder:'ex. 4.85', step:'0.01'}],
+        onSubmit:(v)=>{
+          const m = parseFloat(v.meters);
+          if(!m || m<=0) return;
+          const panel = pagePanels[pageNum];
+          panel.pointsPerMeter = pointDist/m;
+          panel.calibrationLinePt = { p1: localToPoint(p1,pageNum), p2: localToPoint(p2,pageNum) };
+          pageCalib[pageNum] = { ratio:null, pointsPerMeter:panel.pointsPerMeter, calibrationLinePt:panel.calibrationLinePt };
+          updatePanelBadge(pageNum);
+          clearLivePreview(); redrawPageItems(pageNum);
+          notifyParent();
+        },
+        onCancel:()=>{ clearLivePreview(); }
+      });
+    } else if(mode==='measure'){
+      finalizeMeasure(pageNum, p1, p2);
+    } else if(mode==='dimension'){
+      finalizeDimension(pageNum, p1, p2);
+    }
+  });
+
+  group.on('click tap', (e)=>{
+    if(mode!=='organize') return;
+    if(group.__dragMoved) return; // c'était un glisser, pas un tap de sélection
+    e.cancelBubble = true;
+    toggleOrganizeSelection(pageNum);
+  });
+}
+
+// ════════════════════════════════════════════
+// BARRE D'OUTILS
+// ════════════════════════════════════════════
+let pendingToolMode = null; // outil auquel appartient le point en attente (mode "2 points")
+
+document.querySelectorAll('.tool').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const newMode = btn.dataset.mode;
+
+    // On garde le point déjà posé (mode "2 points") si on passe juste par Déplacer
+    // pour naviguer, ou si on revient sur le même outil de cotation qu'avant —
+    // seul un changement vers un AUTRE outil de dessin annule le point en attente.
+    const keepPending = pending.length>0 && dimInputMode==='points'
+      && (newMode==='pan' || newMode===pendingToolMode);
+
+    document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = newMode;
+    dragging = false;
+    hud.style.display='none';
+
+    if(!keepPending){
+      pending = []; pendingPageNum = null; pendingToolMode = null;
+      clearLivePreview();
+    } else if(mode!=='pan'){
+      // De retour sur l'outil : on réaffiche le point mémorisé.
+      drawPendingDot(pendingPageNum, pending[0]);
+    }
+
+    if(stage) setStageDraggable(mode==='pan');
+    setOrganizeMode(mode==='organize');
+    document.getElementById('dim-options').style.display = (mode==='measure'||mode==='dimension') ? 'flex' : 'none';
+  });
+});
+document.querySelector('.tool[data-mode="pan"]').classList.add('active');
+
+document.querySelectorAll('#dim-options .seg-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const group = btn.closest('.seg-group');
+    const setting = group.dataset.setting;
+    group.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    pending=[]; pendingPageNum=null; hud.style.display='none'; clearLivePreview();
+    if(setting==='angle') dimAngleMode = btn.dataset.value;
+    else if(setting==='input') dimInputMode = btn.dataset.value;
+    else if(setting==='snap') snapEnabled = (btn.dataset.value==='on');
+  });
+});
+
+// ════════════════════════════════════════════
+// MODAL GÉNÉRIQUE
+// ════════════════════════════════════════════
+function openModal({title, subtitle, fields, onSubmit, onCancel, okText}){
+  const overlayEl = document.getElementById('modal-overlay');
+  const box = document.getElementById('modal-box');
+  let html = '<h3>'+title+'</h3>';
+  if(subtitle) html += '<p>'+subtitle+'</p>';
+  fields.forEach(f=>{
+    if(f.type==='textarea') html += '<textarea name="'+f.name+'" placeholder="'+(f.placeholder||'')+'" autofocus></textarea>';
+    else if(f.type==='select') html += '<select name="'+f.name+'" autofocus>'+f.options.map(o=>'<option value="'+o.value+'"'+(o.selected?' selected':'')+'>'+o.label+'</option>').join('')+'</select>';
+    else html += '<input name="'+f.name+'" type="'+f.type+'" step="'+(f.step||'any')+'" placeholder="'+(f.placeholder||'')+'" autofocus>';
+  });
+  html += '<div class="row"><button id="modal-cancel" style="background:var(--panel-2);color:var(--text-dim);">Annuler</button><button id="modal-ok" style="background:var(--orange);color:#1a1204;font-weight:700;">'+(okText||'Valider')+'</button></div>';
+  box.innerHTML = html;
+  overlayEl.classList.add('open');
+
+  const firstInput = box.querySelector('input,textarea,select');
+  if(firstInput){ setTimeout(()=>firstInput.focus(), 50); }
+
+  function collect(){
+    const v = {};
+    fields.forEach(f=>{ v[f.name] = box.querySelector('[name="'+f.name+'"]').value; });
+    return v;
+  }
+  function submit(){
+    closeModal();
+    if(onSubmit) onSubmit(collect());
+  }
+  box.querySelector('#modal-ok').onclick = submit;
+  box.querySelector('#modal-cancel').onclick = ()=>{ closeModal(); if(onCancel) onCancel(); };
+  if(firstInput && fields.length===1 && fields[0].type!=='textarea'){
+    firstInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submit(); });
+  }
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ════════════════════════════════════════════
+// PONT AVEC LA PAGE PARENTE (module Chantiers)
+// ════════════════════════════════════════════
+let initReceived = false;
+window.addEventListener('message', async (e)=>{
+  const msg = e.data;
+  if(!msg || msg.type !== 'coteur-init') return;
+  initReceived = true;
+  console.log('[Coteur] coteur-init reçu', {hasPlan: !!msg.planData, chantier: msg.chantierNom});
+  if(msg.chantierNom) document.getElementById('brand-sub').textContent = msg.chantierNom;
+  const saved = msg.items && typeof msg.items === 'object' ? msg.items : {};
+  const looksOld = saved && !saved.itemsByPage && !saved.pageCalib;
+  itemsByPage = looksOld ? saved : (saved.itemsByPage || {});
+  pageCalib = looksOld ? {} : (saved.pageCalib || {});
+  pageLayout = looksOld ? {} : (saved.pageLayout || {});
+  pageGroupId = looksOld ? {} : (saved.pageGroupId || {});
+  groupAnnotations = looksOld ? {} : (saved.groupAnnotations || {});
+  let maxGid = 0;
+  Object.keys(pageGroupId).forEach(pn=>{
+    const g = pageGroupId[pn];
+    if(g){ const n=parseInt(String(g).replace('g',''),10); if(!isNaN(n) && n>maxGid) maxGid=n; }
+  });
+  nextGroupId = maxGid+1;
+  let maxId = 0;
+  Object.values(itemsByPage).forEach(arr => (arr||[]).forEach(it => { if(it.id>maxId) maxId=it.id; }));
+  nextId = maxId+1;
+
+  if(!msg.planData){
+    setEmptyState('Aucun plan pour ce chantier', 'Importe un plan depuis l\'onglet Plan pour commencer.');
+    return;
+  }
+  try{
+    console.log('[Coteur] fetch du plan…');
+    const res = await fetch(msg.planData);
+    const buf = await res.arrayBuffer();
+    console.log('[Coteur] plan récupéré,', buf.byteLength, 'octets — chargement pdf.js…');
+    pdfDoc = await pdfjsLib.getDocument({data:buf}).promise;
+    console.log('[Coteur] PDF chargé,', pdfDoc.numPages, 'page(s)');
+    document.getElementById('empty-state').style.display = 'none';
+    if(!stage) initStage();
+    await renderAllPages();
+    renderGroupAnnotations();
+    setActivePage(1);
+  }catch(err){
+    console.error('[Coteur] Erreur chargement plan:', err);
+    setEmptyState('Erreur de chargement du plan', (err && err.message?err.message+' — ':'')+'Réessaie ci-dessous.', true);
+  }
+});
+
+function setEmptyState(title, sub, showRetry){
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('empty-title').textContent = title;
+  document.getElementById('empty-sub').textContent = sub;
+  const btn = document.getElementById('empty-retry-btn');
+  if(btn) btn.style.display = showRetry ? 'inline-block' : 'none';
+}
+
+if(window.parent !== window){
+  window.parent.postMessage({type:'coteur-ready'}, '*');
+  console.log('[Coteur] coteur-ready envoyé au parent, en attente du plan…');
+}
+setTimeout(()=>{
+  if(!initReceived && window.parent !== window){
+    console.warn('[Coteur] Aucune réponse du parent après 6s, nouvelle tentative…');
+    setEmptyState('Ça prend plus de temps que prévu…', 'Nouvel essai en cours. Si ça persiste, réouvre l\'onglet Plan.', true);
+    window.parent.postMessage({type:'coteur-ready'}, '*');
+  }
+}, 6000);
+
+let notifyTimer = null;
+function notifyParent(){
+  if(window.parent === window) return;
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(()=>{
+    window.parent.postMessage({type:'coteur-items-update', items:{itemsByPage, pageCalib, pageLayout, pageGroupId, groupAnnotations}}, '*');
+  }, 500);
+}
+</script>
+</body>
+</html>

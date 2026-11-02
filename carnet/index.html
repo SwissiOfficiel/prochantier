@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script src="../config.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Carnet d'heure — ProChantier</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --navy:#D42D20;--teal:#1A7F72;--gold:#F0A500;
+  --bg:#F5F6F8;--white:#fff;--text:#1A1A2E;
+  --muted:#6B7280;--border:#E2E5EA;--red:#E53935;
+  --radius:12px;--shadow:0 2px 8px rgba(212,45,32,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* HEADER */
+.hdr{background:var(--navy);color:#fff;padding:14px 16px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.back-btn{background:rgba(255,255,255,0.13);border:none;color:#fff;width:34px;height:34px;
+  border-radius:8px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.hdr-title{font-size:17px;font-weight:700}
+.hdr-sub{font-size:12px;opacity:.65;margin-top:1px}
+.hdr-btn{background:rgba(255,255,255,0.13);border:none;color:#fff;padding:7px 12px;
+  border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.hdr-actions{display:flex;align-items:center;gap:6px}
+.hdr-btn-icon{background:rgba(255,255,255,0.13);border:none;color:#fff;width:34px;height:34px;
+  border-radius:8px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+
+/* CALCULATRICE (popup, réutilise .overlay/.modal/.mh/.mt) */
+.calc-sheet-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0}
+.calc-sheet-header .mt{padding:0;border-bottom:none}
+.btn-calc-clear-hist{border:none;background:none;font-size:16px;color:var(--muted);cursor:pointer;padding:4px 6px}
+.btn-calc-clear-hist:active{opacity:.6}
+.calc-body{padding:10px 16px 24px}
+.calc-expr-line{font-size:13px;color:var(--muted);text-align:right;min-height:16px;padding:0 4px}
+.calc-display{background:var(--bg);border-radius:8px;padding:10px 14px 16px;text-align:right;font-size:28px;font-weight:700;margin-bottom:10px;color:var(--text);overflow-x:auto;white-space:nowrap}
+.calc-history-box{background:var(--bg);border-radius:8px;padding:6px 12px;margin-bottom:10px;max-height:110px;overflow-y:auto}
+.calc-history-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border);cursor:pointer}
+.calc-history-row:first-child{border-top:none}
+.calc-history-row:active{opacity:.6}
+.calc-history-expr{font-size:12px;color:var(--muted)}
+.calc-history-result{font-size:12px;font-weight:700;color:var(--text)}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.calc-btn{border:none;background:var(--bg);color:var(--text);font-family:inherit;font-size:18px;font-weight:600;padding:16px 0;border-radius:8px;cursor:pointer}
+.calc-btn:active{opacity:.7}
+.calc-btn.op{background:var(--navy);color:#fff}
+.calc-btn.eq{background:var(--gold);color:var(--navy);grid-row:span 2}
+.calc-btn.span2{grid-column:span 2}
+
+/* VIEWS */
+.view{display:none;min-height:calc(100vh - 62px)}
+.view.active{display:block}
+
+/* ── HOME: MONTH LIST ── */
+.month-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px}
+.month-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px 14px;cursor:pointer;transition:transform .12s,box-shadow .12s;
+  display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden}
+.month-card:active{transform:scale(0.97)}
+.month-card.current{border:2px solid var(--teal)}
+.month-card.has-pdf{background:linear-gradient(135deg,#fff 0%,#f0fdf9 100%)}
+.month-name{font-size:16px;font-weight:800;color:var(--navy)}
+.month-status{font-size:11px;color:var(--muted);font-weight:600}
+.month-totals{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.mt-h{font-size:12px;font-weight:700;color:var(--teal);background:#e8f5f3;padding:2px 8px;border-radius:8px;}
+.mt-r{font-size:12px;font-weight:700;color:var(--navy);background:#eef1f8;padding:2px 8px;border-radius:8px;}
+.month-card.current .month-name{color:var(--teal)}
+.month-pdf-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);
+  position:absolute;top:10px;right:10px}
+.month-card:not(.has-pdf){opacity:.6}
+
+/* ── PDF VIEWER ── */
+.pdf-toolbar{background:var(--navy);padding:10px 14px;display:flex;align-items:center;gap:10px;
+  position:sticky;top:62px;z-index:90;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
+.pdf-month-lbl{color:#fff;font-size:15px;font-weight:700;flex:1}
+.tb-btn{background:rgba(255,255,255,0.15);border:none;color:#fff;padding:7px 12px;
+  border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.tb-btn.green{background:var(--teal)}
+
+.pdf-scroll{overflow:auto;-webkit-overflow-scrolling:touch;padding:10px;background:#555;min-height:400px}
+.pdf-canvas-wrap{display:flex;justify-content:center;transform-origin:top center;transition:transform .1s}
+.pdf-canvas-wrap{display:flex;justify-content:center}
+#pdfCanvas{display:block;box-shadow:0 2px 12px rgba(0,0,0,0.4);border-radius:2px}
+
+.no-pdf-msg{padding:60px 20px;text-align:center;color:var(--muted)}
+.no-pdf-icon{font-size:48px;opacity:.3;margin-bottom:12px}
+.no-pdf-text{font-size:15px;margin-bottom:20px}
+.no-pdf-btn{display:inline-block;background:var(--teal);color:#fff;padding:12px 24px;
+  border-radius:var(--radius);font-size:14px;font-weight:700;cursor:pointer;border:none;font-family:inherit}
+
+/* ── MODAL SAISIE ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end}
+.overlay.open{display:flex}
+.modal{background:var(--white);width:100%;max-width:500px;border-radius:20px 20px 0 0;
+  padding-bottom:32px;max-height:90vh;overflow-y:auto;animation:up .22s ease}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mh{width:36px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0}
+.mt{font-size:17px;font-weight:800;color:var(--navy);padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.mt small{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
+
+/* Day picker */
+.day-picker{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:12px 14px}
+.dp-head{text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0}
+.dp-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--navy);
+  border:1px solid transparent;transition:all .12s}
+.dp-day:hover,.dp-day.sel{background:var(--teal);color:#fff}
+.dp-day.wknd{color:var(--muted);background:var(--bg)}
+.dp-day.wknd.sel{background:var(--teal);color:#fff}
+.dp-day.empty{cursor:default}
+.dp-day.filled{border-color:var(--teal);color:var(--teal)}
+.dp-day.filled.sel{background:var(--teal);color:#fff}
+
+/* Form */
+.form-sec{padding:10px 16px 0}
+.form-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.form-card{background:var(--bg);border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.form-row{display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);gap:10px}
+.form-row:last-child{border-bottom:none}
+.form-rl{font-size:13px;color:var(--muted);min-width:80px;flex-shrink:0}
+.tfield{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:7px 10px;
+  font-size:15px;font-weight:700;color:var(--navy);outline:none;font-family:inherit;text-align:center;width:76px}
+.tsep{color:var(--muted)}
+.total-lbl{font-size:18px;font-weight:800;color:var(--teal)}
+.std-btn{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;
+  font-size:11px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit;margin-left:auto}
+
+/* Type chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px}
+.chip{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;
+  border:2px solid var(--border);background:var(--bg);color:var(--muted);transition:all .15s}
+.chip.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* Toggle repas */
+.tog-row{display:flex;align-items:center;padding:11px 16px;border-top:1px solid var(--border)}
+.tog-lbl{flex:1;font-size:14px;font-weight:600;color:var(--text)}
+.tog{width:44px;height:26px;border-radius:13px;border:none;cursor:pointer;
+  background:var(--border);position:relative;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--teal)}
+.tog::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;
+  border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.tog.on::after{left:21px}
+
+/* Buttons */
+.m-actions{display:flex;gap:8px;padding:14px 16px 0}
+.m-btn{flex:1;padding:14px;border-radius:var(--radius);border:none;font-size:15px;font-weight:700;
+  cursor:pointer;font-family:inherit}
+.m-btn.primary{background:var(--teal);color:#fff}
+.m-btn.secondary{background:var(--bg);color:var(--muted)}
+.m-btn.danger{background:#FFEBEE;color:var(--red)}
+
+/* ── PARAMS ── */
+.params-body{padding:14px}
+.p-sec{margin-bottom:16px}
+.p-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:8px}
+.p-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.p-row{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);gap:10px;cursor:pointer}
+.p-row:last-child{border-bottom:none}
+.p-row-lbl{flex:1;font-size:14px;font-weight:600;color:var(--text)}
+.p-row-status{font-size:12px;color:var(--muted)}
+.p-row-status.ok{color:var(--teal);font-weight:700}
+.p-input{flex:1;border:none;outline:none;font-size:15px;font-weight:600;
+  color:var(--text);background:transparent;font-family:inherit}
+
+/* TOAST */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--text);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;
+  font-weight:600;opacity:0;pointer-events:none;transition:all .3s;z-index:500;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* AUTH GUARD */
+#authGuard{display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;align-items:center;justify-content:center;}
+#authGuard.show{display:flex;}
+#authGuard .spin{width:34px;height:34px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- AUTH GUARD (écran de chargement pendant vérif + sync Firestore) -->
+<div id="authGuard" class="show"><div class="spin"></div></div>
+
+
+<!-- ═══ HEADER ═══ -->
+<div class="hdr">
+  <div class="hdr-left">
+    <button class="back-btn" id="backBtn" onclick="handleHeaderHome()">🏠</button>
+    <div>
+      <div class="hdr-title">Carnet d'heure</div>
+      <div class="hdr-sub" id="hdrSub">2026</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <button class="hdr-btn-icon" id="paramsBtn" onclick="showParams()" title="Paramètres">⚙</button>
+    <button class="hdr-btn-icon" onclick="openCalculatrice()" title="Calculatrice">🧮</button>
+  </div>
+</div>
+
+<!-- ═══ VIEW HOME: liste des mois ═══ -->
+<div class="view active" id="viewHome">
+  <div class="month-grid" id="monthGrid"></div>
+</div>
+
+<!-- ═══ VIEW PDF ═══ -->
+<div class="view" id="viewPdf">
+  <div class="pdf-toolbar">
+    <span class="pdf-month-lbl" id="pdfMonthLbl">Juin 2026</span>
+    <button class="tb-btn green" onclick="openDayPicker()">✏️ Saisir</button>
+    <button class="tb-btn" onclick="downloadFilledPdf()">⬇ Télécharger</button>
+  </div>
+  <div class="pdf-scroll" id="pdfScroll">
+    <div class="pdf-canvas-wrap">
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VIEW PARAMS ═══ -->
+<div class="view" id="viewParams">
+  <div class="params-body">
+
+    <div class="p-sec">
+      <div class="p-title">👤 Informations</div>
+      <div class="p-card">
+        <div class="p-row" style="cursor:default">
+          <span class="p-row-lbl" style="font-weight:500;color:var(--muted);min-width:60px">Nom</span>
+          <input class="p-input" id="cfgNom" placeholder="Prénom Nom" onchange="saveCfg()">
+        </div>
+      </div>
+    </div>
+
+    <div class="p-sec">
+      <div class="p-title">⏰ Horaires standard</div>
+      <div class="p-card">
+        <div class="p-row" style="cursor:default">
+          <span class="p-row-lbl" style="font-size:12px;color:var(--muted)">🌅 Matin</span>
+          <input class="tfield" id="cfgMd" type="time" value="07:30" onchange="saveCfg()" style="width:70px">
+          <span class="tsep">–</span>
+          <input class="tfield" id="cfgMf" type="time" value="12:00" onchange="saveCfg()" style="width:70px">
+        </div>
+        <div class="p-row" style="cursor:default">
+          <span class="p-row-lbl" style="font-size:12px;color:var(--muted)">☀️ Après-m.</span>
+          <input class="tfield" id="cfgAd" type="time" value="13:00" onchange="saveCfg()" style="width:70px">
+          <span class="tsep">–</span>
+          <input class="tfield" id="cfgAf" type="time" value="17:30" onchange="saveCfg()" style="width:70px">
+        </div>
+      </div>
+    </div>
+
+    <div class="p-sec">
+      <div class="p-title">📄 PDF par mois (1 par mois)</div>
+      <div class="p-card" id="pdfSlots"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ MODAL SAISIE JOUR ═══ -->
+<div class="overlay" id="overlay" onclick="closeOverlay(event)">
+<div class="modal">
+  <div class="mh"></div>
+  <div class="mt" id="modalTitle">Saisir les heures<small id="modalSub"></small></div>
+
+  <!-- Sélecteur de jour -->
+  <div class="day-picker" id="dayPicker"></div>
+
+  <!-- Matin -->
+  <div class="form-sec">
+    <div class="form-lbl">🌅 Matin</div>
+    <div class="chips" id="amChips" style="padding:0 0 8px">
+      <div class="chip sel" data-t="normal" onclick="selHalfType('am','normal')">✅ Normal</div>
+      <div class="chip" data-t="vacances" onclick="selHalfType('am','vacances')">🏖 Vacances</div>
+      <div class="chip" data-t="malade" onclick="selHalfType('am','malade')">🤒 Malade</div>
+      <div class="chip" data-t="accident" onclick="selHalfType('am','accident')">🚑 Accident</div>
+    </div>
+    <div class="form-card" id="amHoraire">
+      <div class="form-row">
+        <span class="form-rl">Début–Fin</span>
+        <input class="tfield" id="fMd" type="time">
+        <span class="tsep">–</span>
+        <input class="tfield" id="fMf" type="time">
+      </div>
+    </div>
+  </div>
+
+  <!-- Après-midi -->
+  <div class="form-sec">
+    <div class="form-lbl">☀️ Après-midi</div>
+    <div class="chips" id="pmChips" style="padding:0 0 8px">
+      <div class="chip sel" data-t="normal" onclick="selHalfType('pm','normal')">✅ Normal</div>
+      <div class="chip" data-t="vacances" onclick="selHalfType('pm','vacances')">🏖 Vacances</div>
+      <div class="chip" data-t="malade" onclick="selHalfType('pm','malade')">🤒 Malade</div>
+      <div class="chip" data-t="accident" onclick="selHalfType('pm','accident')">🚑 Accident</div>
+    </div>
+    <div class="form-card" id="pmHoraire">
+      <div class="form-row">
+        <span class="form-rl">Début–Fin</span>
+        <input class="tfield" id="fAd" type="time">
+        <span class="tsep">–</span>
+        <input class="tfield" id="fAf" type="time">
+      </div>
+    </div>
+  </div>
+
+  <!-- Total + Standard + Repas -->
+  <div class="form-sec">
+    <div class="form-card">
+      <div class="form-row">
+        <span class="form-rl">⏱ Total</span>
+        <span class="total-lbl" id="totalLbl">0h00</span>
+        <button class="std-btn" onclick="applyStd()">Standard</button>
+      </div>
+    </div>
+    <div class="tog-row">
+      <span class="tog-lbl">🍽 Repas</span>
+      <button class="tog" id="togRepas" onclick="togR()"></button>
+    </div>
+  </div>
+
+  <div class="m-actions">
+    <button class="m-btn secondary" onclick="closeModal()">Annuler</button>
+    <button class="m-btn primary" onclick="saveDay()">Enregistrer dans le PDF</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══ OVERLAY CALCULATRICE ═══ -->
+<div class="overlay" id="overlay-calc" onclick="closeCalculatrice(event)">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="calc-sheet-header">
+      <div class="mt">🧮 Calculatrice</div>
+      <button class="btn-calc-clear-hist" onclick="calcClearHistory()">🗑️</button>
+    </div>
+    <div class="calc-body">
+      <div class="calc-expr-line" id="calc-expr-line"></div>
+      <div class="calc-display" id="calc-display">0</div>
+      <div class="calc-history-box" id="calc-history-list"></div>
+      <div class="calc-grid">
+        <button class="calc-btn" onclick="calcClear()">C</button>
+        <button class="calc-btn" onclick="calcBackspace()">⌫</button>
+        <button class="calc-btn op" onclick="calcOp('/')">÷</button>
+        <button class="calc-btn op" onclick="calcOp('*')">×</button>
+        <button class="calc-btn" onclick="calcDigit('7')">7</button>
+        <button class="calc-btn" onclick="calcDigit('8')">8</button>
+        <button class="calc-btn" onclick="calcDigit('9')">9</button>
+        <button class="calc-btn op" onclick="calcOp('-')">−</button>
+        <button class="calc-btn" onclick="calcDigit('4')">4</button>
+        <button class="calc-btn" onclick="calcDigit('5')">5</button>
+        <button class="calc-btn" onclick="calcDigit('6')">6</button>
+        <button class="calc-btn op" onclick="calcOp('+')">+</button>
+        <button class="calc-btn" onclick="calcDigit('1')">1</button>
+        <button class="calc-btn" onclick="calcDigit('2')">2</button>
+        <button class="calc-btn" onclick="calcDigit('3')">3</button>
+        <button class="calc-btn eq" onclick="calcEquals()">=</button>
+        <button class="calc-btn span2" onclick="calcDigit('0')">0</button>
+        <button class="calc-btn" onclick="calcDigit('.')">.</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file inputs for PDF upload -->
+<div id="pdfInputs" style="display:none"></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = window.APP_CONFIG.firebase;
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+let currentUid = null;
+</script>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ═══════════════════════════════════
+// CONSTANTS & STATE
+// ═══════════════════════════════════
+const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin',
+              'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const DOW_S  = ['Lu','Ma','Me','Je','Ve','Sa','Di'];
+
+// PDF cell coordinates (from analysis of real Excel PDF)
+const PDF = {
+  DAY1_X:    184.05,  // center X of day 1 column
+  DAY_SPACE:  15.745, // spacing between day columns
+  PAGE_H:    595.0,   // page height
+  TOTAL_X:   747.5,  // X center of "Total heures ou de repas" column on the right
+  // Row Y centers — measured from real PDF (top-left origin)
+  ROWS: {
+    apm_fin: 216.7,   // Après-midi fin   (17h30)
+    apm_deb: 243.6,   // Après-midi début (13h00)
+    mat_fin: 359.1,   // Matin fin        (12h00)
+    mat_deb: 378.9,   // Matin début      (7h30)
+    hrs:     410.7,   // Heures de travail
+    repas:   436.5,   // Repas
+    nuit:    462.4,   // Heures nuit (+50%)
+    sam:     488.3,   // Heures samedi (+25%)
+    dim:     514.1,   // Heures dim/sam soir (+50%)
+    assur:   540.0,   // Assurance
+  },
+  // Vertical center between début/fin rows, used to write a single word for a half-day off
+  ROWS_CENTER: {
+    apm: 230.15,  // center between apm_fin (216.7) and apm_deb (243.6)
+    mat: 369.0,   // center between mat_fin (359.1) and mat_deb (378.9)
+  }
+};
+
+const now = new Date();
+let curYear  = now.getFullYear();
+let curView  = 'home';
+let curMo    = -1;   // current month being viewed
+let selDay   = -1;   // selected day in picker
+let selAmType = 'normal'; // type for matin
+let selPmType = 'normal'; // type for après-midi
+let hasRepas = false;
+
+// Storage
+let cfg = { nom:'', md:'07:30', mf:'12:00', ad:'13:00', af:'17:30' };
+let monthPdfs  = new Array(12).fill(null);   // base64 original PDFs per month
+let dayEntries = {};  // { "YYYY-MM-DD": {matDeb,matFin,amDeb,amFin,hours,type,repas} }
+let dirtyMonths = new Set(); // months with unsaved edits
+
+// ═══════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════
+// ── Clés locales namespacées par utilisateur (évite tout mélange si le même
+//    appareil sert à plusieurs comptes) ──────────────────────────────────
+function lsKeyCfg(uid){ return 'ch3_cfg_'+uid; }
+function lsKeyEntries(uid){ return 'ch3_entries_'+uid; }
+function lsKeyPdf(uid,i){ return 'ch3_pdf_'+uid+'_'+i; }
+
+// Migration one-shot des anciennes clés globales (ch3_cfg, ch3_entries, ch3_pdf_N)
+// vers les nouvelles clés namespacées, pour ne pas perdre les données déjà
+// présentes sur l'appareil au moment du passage au multi-compte.
+function migrateLegacyLocalKeys(uid){
+  if(!localStorage.getItem(lsKeyCfg(uid))){
+    const old=localStorage.getItem('ch3_cfg');
+    if(old){ localStorage.setItem(lsKeyCfg(uid), old); localStorage.removeItem('ch3_cfg'); }
+  }
+  if(!localStorage.getItem(lsKeyEntries(uid))){
+    const old=localStorage.getItem('ch3_entries');
+    if(old){ localStorage.setItem(lsKeyEntries(uid), old); localStorage.removeItem('ch3_entries'); }
+  }
+  for(let i=0;i<12;i++){
+    if(!localStorage.getItem(lsKeyPdf(uid,i))){
+      const old=localStorage.getItem('ch3_pdf_'+i);
+      if(old){ localStorage.setItem(lsKeyPdf(uid,i), old); localStorage.removeItem('ch3_pdf_'+i); }
+    }
+  }
+}
+
+function loadAll(uid) {
+  migrateLegacyLocalKeys(uid);
+  const c = localStorage.getItem(lsKeyCfg(uid));
+  if(c) cfg = {...cfg, ...JSON.parse(c)};
+  const e = localStorage.getItem(lsKeyEntries(uid));
+  if(e) dayEntries = JSON.parse(e);
+  for(let i=0;i<12;i++){
+    const p = localStorage.getItem(lsKeyPdf(uid,i));
+    if(p) monthPdfs[i] = p;
+  }
+}
+
+// ── Firestore sync (scoped per user via currentUid) ──────────
+async function syncFromFirestore() {
+  if(!currentUid) return;
+  try {
+    const mainSnap = await db.collection('carnet_heures').doc(currentUid).get();
+    if (mainSnap.exists) {
+      const data = mainSnap.data();
+      if (data.cfg) { cfg = {...cfg, ...data.cfg}; localStorage.setItem(lsKeyCfg(currentUid), JSON.stringify(cfg)); }
+      if (data.entries) { dayEntries = data.entries; localStorage.setItem(lsKeyEntries(currentUid), JSON.stringify(dayEntries)); }
+    }
+    // PDFs: one doc par mois, seulement ceux pas déjà en cache localement
+    // (évite de retélécharger 12 PDF à chaque connexion une fois mis en cache sur l'appareil)
+    const fetches = [];
+    for (let i=0;i<12;i++){
+      if (!monthPdfs[i]) {
+        fetches.push(
+          db.collection('carnet_heures_pdfs').doc(`${currentUid}_${i}`).get()
+            .then(snap => { if (snap.exists) { monthPdfs[i] = snap.data().pdf; localStorage.setItem(lsKeyPdf(currentUid,i), monthPdfs[i]); } })
+        );
+      }
+    }
+    await Promise.all(fetches);
+    console.log('[Carnet] Sync OK');
+  } catch(err) {
+    console.warn('[Carnet] Sync error:', err);
+  }
+}
+
+let saveCfgTimer = null, saveEntriesTimer = null;
+
+function saveCfg() {
+  if(!currentUid) return;
+  cfg.nom = $('cfgNom').value;
+  cfg.md  = $('cfgMd').value;  cfg.mf = $('cfgMf').value;
+  cfg.ad  = $('cfgAd').value;  cfg.af = $('cfgAf').value;
+  localStorage.setItem(lsKeyCfg(currentUid), JSON.stringify(cfg));
+  // Debounce Firestore write
+  clearTimeout(saveCfgTimer);
+  saveCfgTimer = setTimeout(() => {
+    db.collection('carnet_heures').doc(currentUid).set({cfg}, {merge:true})
+      .catch(err => console.warn('[Carnet] saveCfg error:', err));
+  }, 600);
+}
+
+function saveEntries() {
+  if(!currentUid) return;
+  localStorage.setItem(lsKeyEntries(currentUid), JSON.stringify(dayEntries));
+  clearTimeout(saveEntriesTimer);
+  saveEntriesTimer = setTimeout(() => {
+    db.collection('carnet_heures').doc(currentUid).set({entries: dayEntries}, {merge:true})
+      .catch(err => console.warn('[Carnet] saveEntries error:', err));
+  }, 600);
+}
+
+// ── PDF PAR DÉFAUT (modèles annuels intégrés à l'app, mis à jour 1x/an) ──
+const isDefaultPdf = new Array(12).fill(false);
+function defaultPdfPath(i){ return `../assets/pdf-templates/${String(i+1).padStart(2,'0')}.pdf`; }
+function arrayBufferToBase64(buffer){
+  let binary=''; const bytes=new Uint8Array(buffer); const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){ binary+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+  return btoa(binary);
+}
+async function fetchDefaultPdf(i){
+  try{
+    const res=await fetch(defaultPdfPath(i));
+    if(!res.ok) return null;
+    const buf=await res.arrayBuffer();
+    return arrayBufferToBase64(buf);
+  }catch(e){ console.warn('[Carnet] Modèle par défaut introuvable pour le mois', i+1, e); return null; }
+}
+async function loadDefaultPdfsIfNeeded(){
+  const fetches=[];
+  for(let i=0;i<12;i++){
+    if(!monthPdfs[i]){
+      fetches.push(fetchDefaultPdf(i).then(b64=>{
+        if(b64){ monthPdfs[i]=b64; isDefaultPdf[i]=true; }
+      }));
+    }
+  }
+  await Promise.all(fetches);
+}
+
+function savePdf(moIdx, b64) {
+  monthPdfs[moIdx] = b64;
+  isDefaultPdf[moIdx] = false;
+  if(!currentUid) return;
+  localStorage.setItem(lsKeyPdf(currentUid, moIdx), b64);
+  db.collection('carnet_heures_pdfs').doc(`${currentUid}_${moIdx}`).set({pdf: b64})
+    .then(() => showToast('☁️ PDF synchronisé'))
+    .catch(err => { console.warn('[Carnet] savePdf error:', err); showToast('⚠️ Sync échouée (sauvé en local)'); });
+}
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+const $ = id => document.getElementById(id);
+function toMin(t){if(!t)return 0;const[h,m]=t.split(':').map(Number);return h*60+m;}
+function calcH(md,mf,ad,af,amType,pmType){
+  // amType/pmType: 'normal' = compute from times, anything else = 0h for that half
+  const amH = (amType===undefined || amType==='normal') ? Math.max(0,toMin(mf)-toMin(md))/60 : 0;
+  const pmH = (pmType===undefined || pmType==='normal') ? Math.max(0,toMin(af)-toMin(ad))/60 : 0;
+  const raw = amH + pmH;
+  // Only deduct the 15min pause if both halves were actually worked
+  const bothWorked = amH>0 && pmH>0;
+  return raw>0 ? Math.max(0, raw - (bothWorked?0.25:0)) : 0;
+}
+function fmtH(h){const m=Math.round(h*60);return `${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}`;}
+function fmtTime(t){if(!t)return '';const[h,m]=t.split(':');return `${parseInt(h)}h${m}`;}
+function dKey(y,mo,d){return `${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+function showToast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+
+// ═══════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════
+function showView(v) {
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  $(v).classList.add('active');
+  curView = v;
+  const isPdf  = v==='viewPdf';
+  const isHome = v==='viewHome';
+  $('paramsBtn').style.display = isPdf || isHome ? 'flex' : 'none';
+}
+
+function handleHeaderHome() {
+  if (curView === 'viewHome') { window.location.href = '../index.html'; }
+  else { showView('viewHome'); }
+}
+
+function showParams() {
+  loadCfgUI();
+  renderPdfSlots();
+  showView('viewParams');
+  $('paramsBtn').style.display = 'none';
+}
+
+// ═══════════════════════════════════
+// HOME — MONTH LIST
+// ═══════════════════════════════════
+function renderHome() {
+  const grid = $('monthGrid');
+  grid.innerHTML = MOIS.map((m, i) => {
+    const isCur = i === now.getMonth() && curYear === now.getFullYear();
+    const hasPdf = !!monthPdfs[i];
+    const cls = 'month-card' + (isCur?' current':'') + (hasPdf?' has-pdf':'');
+    // Count entries and compute totals for this month
+    const prefix = `${curYear}-${String(i+1).padStart(2,'0')}-`;
+    const entries = Object.entries(dayEntries).filter(([k]) => k.startsWith(prefix));
+    const cnt = entries.length;
+    let totalH = 0, totalRepas = 0;
+    entries.forEach(([, e]) => {
+      totalH += e.hours||0;
+      if (e.repas) totalRepas++;
+    });
+    const totalsHtml = cnt > 0
+      ? `<div class="month-totals">
+           <span class="mt-h">⏱ ${fmtH(totalH)}</span>
+           <span class="mt-r">🍽 ${totalRepas} repas</span>
+         </div>`
+      : '';
+    return `<div class="${cls}" onclick="openMonth(${i})">
+      ${hasPdf?'<div class="month-pdf-dot"></div>':''}
+      <div class="month-name">${m}</div>
+      <div class="month-status">${hasPdf ? (cnt>0?`${cnt} jour${cnt>1?'s':''} saisi${cnt>1?'s':''}` : 'PDF prêt') : 'Pas de PDF'}</div>
+      ${totalsHtml}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// PDF VIEWER
+// ═══════════════════════════════════
+let currentPdfDoc = null;
+let currentPdfBytes = null; // original bytes
+let modifiedPdfBytes = null; // with user edits applied
+
+async function openMonth(moIdx) {
+  curMo = moIdx;
+  $('pdfMonthLbl').textContent = `${MOIS[moIdx]} ${curYear}`;
+  $('hdrSub').textContent = `${MOIS[moIdx]} ${curYear}`;
+  showView('viewPdf');
+
+  if (!monthPdfs[moIdx]) {
+    const b64 = await fetchDefaultPdf(moIdx);
+    if (b64) { monthPdfs[moIdx] = b64; isDefaultPdf[moIdx] = true; }
+  }
+
+  if (!monthPdfs[moIdx]) {
+    $('pdfScroll').innerHTML = `
+      <div class="no-pdf-msg">
+        <div class="no-pdf-icon">📄</div>
+        <div class="no-pdf-text">Aucun PDF pour ${MOIS[moIdx]}</div>
+        <button class="no-pdf-btn" onclick="goUploadPdf(${moIdx})">📂 Importer le PDF</button>
+      </div>`;
+    return;
+  }
+  renderPdfPage(moIdx);
+}
+
+let pdfScale = 1;
+let pdfBaseScale = 1;
+let currentPdfPage = null;
+
+async function renderPdfPage(moIdx) {
+  $('pdfScroll').innerHTML = '<div class="pdf-canvas-wrap" id="pdfWrap"><canvas id="pdfCanvas"></canvas></div>';
+  
+  try {
+    const b64 = monthPdfs[moIdx];
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    currentPdfBytes = bytes;
+
+    const pdf = await pdfjsLib.getDocument({data: bytes}).promise;
+    currentPdfDoc = pdf;
+
+    // For 1-page PDF: page 1. For 2-page: page 1 has data rows at top.
+    // For 14-page annual: page moIdx+1 has data at top.
+    const pageNum = pdf.numPages >= 2 ? (pdf.numPages > 2 ? curMo+1 : 1) : 1;
+    currentPdfPage = await pdf.getPage(Math.min(pageNum, pdf.numPages));
+
+    pdfBaseScale = Math.min(window.innerWidth - 20, 900) / currentPdfPage.getViewport({scale:1}).width;
+    pdfScale = 1;
+    await renderAtScale(pdfBaseScale);
+    setupZoom();
+
+  } catch(err) {
+    console.error(err);
+    showToast('Erreur lecture PDF');
+  }
+}
+
+async function renderAtScale(scale) {
+  if(!currentPdfPage) return;
+  const canvas = $('pdfCanvas');
+  if(!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const vp = currentPdfPage.getViewport({scale});
+  // Render at full device pixel density so text stays crisp on high-DPI screens (Samsung etc.)
+  canvas.width  = Math.round(vp.width  * dpr);
+  canvas.height = Math.round(vp.height * dpr);
+  canvas.style.width  = vp.width + 'px';
+  canvas.style.height = vp.height + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  await currentPdfPage.render({canvasContext: ctx, viewport: vp}).promise;
+  drawEntriesOnCanvas(canvas, scale, curMo, dpr);
+}
+
+function setupZoom() {
+  const scroll = $('pdfScroll');
+  if(!scroll || scroll._zoomSetup) return;
+  scroll._zoomSetup = true;
+
+  // Pinch-to-zoom
+  let startDist = 0, startScale = 1;
+  scroll.addEventListener('touchstart', e => {
+    if(e.touches.length===2){
+      startDist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                             e.touches[0].clientY-e.touches[1].clientY);
+      startScale = pdfScale;
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  scroll.addEventListener('touchmove', e => {
+    if(e.touches.length===2){
+      e.preventDefault();
+      const dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                              e.touches[0].clientY-e.touches[1].clientY);
+      pdfScale = Math.max(0.5, Math.min(5, startScale * dist/startDist));
+      const canvas = $('pdfCanvas');
+      if(canvas){
+        canvas.style.transform = `scale(${pdfScale})`;
+        canvas.style.transformOrigin = 'top left';
+      }
+    }
+  }, {passive:false});
+
+  scroll.addEventListener('touchend', async e => {
+    if(e.touches.length<2 && pdfScale !== 1){
+      // Re-render at new scale for crisp text
+      const finalScale = pdfBaseScale * pdfScale;
+      pdfScale = 1;
+      await renderAtScale(finalScale);
+      pdfBaseScale = finalScale;
+    }
+  });
+
+  // Double-tap to zoom in/out
+  let lastTap = 0;
+  scroll.addEventListener('touchend', e => {
+    const now2 = Date.now();
+    if(now2 - lastTap < 300 && e.touches.length===0){
+      const newBase = pdfBaseScale > (window.innerWidth-20)/841 * 1.5
+        ? (window.innerWidth-20)/841
+        : pdfBaseScale * 2;
+      pdfBaseScale = newBase;
+      renderAtScale(newBase);
+    }
+    lastTap = now2;
+  });
+}
+
+function drawEntriesOnCanvas(canvas, scale, moIdx, dpr) {
+  const ctx = canvas.getContext('2d');
+  const prefix = `${curYear}-${String(moIdx+1).padStart(2,'0')}-`;
+  const ents = Object.entries(dayEntries).filter(([k])=>k.startsWith(prefix));
+
+  const fs = Math.max(6, Math.round(5.5 * scale));
+  const SPECIAL_LABEL = { vacances:'Vac', malade:'Malade', accident:'Accident' };
+
+  function drawV(text, pyY, colX, fsize) {
+    if(!text && text!==0) return;
+    const s = String(text);
+    const cx   = colX * scale;
+    const rowY = pyY  * scale;
+    ctx.save();
+    ctx.translate(cx, rowY);
+    ctx.rotate(-Math.PI / 2);  // rotate 90° CCW → text reads bottom-to-top
+    ctx.font = `700 ${fsize||fs}px Arial`;
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(s, 0, 0);
+    ctx.restore();
+  }
+
+  ents.forEach(([key, e]) => {
+    const d = parseInt(key.split('-')[2]);
+    const colX = PDF.DAY1_X + (d-1)*PDF.DAY_SPACE; // already center X
+    const amType = e.amType || e.type || 'normal'; // amType = matin
+    const pmType = e.pmType || (e.type ? e.type : 'normal'); // pmType = après-midi
+
+    // Matin (mat_deb / mat_fin)
+    if(amType==='normal'){
+      if(e.matDeb) drawV(fmtTime(e.matDeb), PDF.ROWS.mat_deb, colX);
+      if(e.matFin) drawV(fmtTime(e.matFin), PDF.ROWS.mat_fin, colX);
+    } else if(SPECIAL_LABEL[amType]){
+      const lbl = SPECIAL_LABEL[amType];
+      const fsize = lbl.length>=7 ? Math.max(4,Math.round(3.2*scale)) : lbl.length>=5 ? Math.max(4,Math.round(3.6*scale)) : Math.max(5,Math.round(4.5*scale));
+      drawV(lbl, PDF.ROWS_CENTER.mat, colX, fsize);
+    }
+
+    // Après-midi (apm_deb / apm_fin)
+    if(pmType==='normal'){
+      if(e.amDeb) drawV(fmtTime(e.amDeb), PDF.ROWS.apm_deb, colX);
+      if(e.amFin) drawV(fmtTime(e.amFin), PDF.ROWS.apm_fin, colX);
+    } else if(SPECIAL_LABEL[pmType]){
+      const lbl = SPECIAL_LABEL[pmType];
+      const fsize = lbl.length>=7 ? Math.max(4,Math.round(3.2*scale)) : lbl.length>=5 ? Math.max(4,Math.round(3.6*scale)) : Math.max(5,Math.round(4.5*scale));
+      drawV(lbl, PDF.ROWS_CENTER.apm, colX, fsize);
+    }
+
+    // Heures travaillées du jour
+    if(e.hours>0) drawV(String(e.hours), PDF.ROWS.hrs, colX);
+    if(e.repas) drawV('1', PDF.ROWS.repas, colX);
+  });
+
+  // Draw monthly totals in the right-hand "Total heures ou de repas" column,
+  // covering the original printed placeholder values (e.g. 26,25 / 0,00) first.
+  let totalH = 0, totalRepas = 0;
+  ents.forEach(([,e]) => {
+    totalH += e.hours||0;
+    if(e.repas) totalRepas++;
+  });
+
+  const tx = PDF.TOTAL_X * scale;
+  const fsT = Math.max(7, Math.round(7 * scale));
+  const boxW = 34 * scale, boxH = 11 * scale;
+
+  // Cover original printed value for "Hres de travail" then write our total
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(tx - boxW/2, PDF.ROWS.hrs*scale - boxH/2, boxW, boxH);
+  ctx.font = `700 ${fsT}px Arial`;
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(fmtH(totalH), tx, PDF.ROWS.hrs * scale);
+  ctx.restore();
+
+  // Cover original printed value for "Repas" then write our total
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(tx - boxW/2, PDF.ROWS.repas*scale - boxH/2, boxW, boxH);
+  ctx.font = `700 ${fsT}px Arial`;
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(totalRepas), tx, PDF.ROWS.repas * scale);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════
+// DAY PICKER MODAL
+// ═══════════════════════════════════
+function openDayPicker() {
+  selDay = -1;
+  selAmType = 'normal';
+  selPmType = 'normal';
+  hasRepas = false;
+  $('togRepas').classList.remove('on');
+  renderDayPicker();
+  selectDay(now.getMonth()===curMo ? now.getDate() : 1);
+  $('overlay').classList.add('open');
+}
+
+function renderDayPicker() {
+  const yr = curYear, mo = curMo;
+  const dim = new Date(yr, mo+1, 0).getDate();
+  const firstDow = (new Date(yr, mo, 1).getDay()+6)%7; // Mon=0
+
+  let html = DOW_S.map(d=>`<div class="dp-head">${d}</div>`).join('');
+  for(let i=0;i<firstDow;i++) html += '<div class="dp-day empty"></div>';
+
+  for(let d=1;d<=dim;d++){
+    const dow = new Date(yr,mo,d).getDay();
+    const wknd = dow===0||dow===6;
+    const key = dKey(yr,mo,d);
+    const filled = !!dayEntries[key];
+    let cls='dp-day'+(wknd?' wknd':'')+(filled?' filled':'');
+    html += `<div class="${cls}" id="dpd_${d}" onclick="selectDay(${d})">${d}</div>`;
+  }
+  $('dayPicker').innerHTML = html;
+}
+
+function selectDay(d) {
+  // Deselect previous
+  if(selDay>0) {
+    const prev=$(`dpd_${selDay}`);
+    if(prev) prev.classList.remove('sel');
+  }
+  selDay = d;
+  const el = $(`dpd_${d}`);
+  if(el) el.classList.add('sel');
+
+  // Update modal title
+  const date = new Date(curYear, curMo, d);
+  $('modalSub').textContent = `${JOURS[date.getDay()]} ${d} ${MOIS[curMo]}`;
+
+  // Load existing entry or apply standard
+  const key = dKey(curYear, curMo, d);
+  const existing = dayEntries[key];
+  if(existing) {
+    $('fMd').value = existing.matDeb||''; $('fMf').value = existing.matFin||'';
+    $('fAd').value = existing.amDeb||'';  $('fAf').value = existing.amFin||'';
+    hasRepas = existing.repas||false;
+    selHalfType('am', existing.amType||'normal');
+    selHalfType('pm', existing.pmType||'normal');
+  } else {
+    applyStd();
+    hasRepas=false;
+    selHalfType('am','normal');
+    selHalfType('pm','normal');
+  }
+  $('togRepas').classList.toggle('on', hasRepas);
+  updateTotal();
+}
+
+function applyStd() {
+  $('fMd').value=cfg.md; $('fMf').value=cfg.mf;
+  $('fAd').value=cfg.ad; $('fAf').value=cfg.af;
+  updateTotal();
+}
+
+function updateTotal() {
+  const h = calcH($('fMd').value,$('fMf').value,$('fAd').value,$('fAf').value,selAmType,selPmType);
+  $('totalLbl').textContent = fmtH(h);
+}
+
+['fMd','fMf','fAd','fAf'].forEach(id=>$(id)?.addEventListener('input',updateTotal));
+
+function selHalfType(half, t) {
+  if(half==='am'){ selAmType = t; }
+  else { selPmType = t; }
+  const chipsId = half==='am' ? 'amChips' : 'pmChips';
+  document.querySelectorAll(`#${chipsId} .chip`).forEach(c=>c.classList.toggle('sel',c.dataset.t===t));
+  const horaireId = half==='am' ? 'amHoraire' : 'pmHoraire';
+  $(horaireId).style.display = t==='normal' ? 'block' : 'none';
+  updateTotal();
+}
+
+function togR(){ hasRepas=!hasRepas; $('togRepas').classList.toggle('on',hasRepas); }
+
+// ═══════════════════════════════════
+// SAVE DAY
+// ═══════════════════════════════════
+function saveDay() {
+  if(selDay<0){showToast('Sélectionne un jour');return;}
+  const key = dKey(curYear, curMo, selDay);
+  const md=$('fMd').value, mf=$('fMf').value;
+  const ad=$('fAd').value, af=$('fAf').value;
+
+  dayEntries[key] = {
+    matDeb: selAmType==='normal' ? md : '',
+    matFin: selAmType==='normal' ? mf : '',
+    amDeb:  selPmType==='normal' ? ad : '',
+    amFin:  selPmType==='normal' ? af : '',
+    hours: calcH(md,mf,ad,af,selAmType,selPmType),
+    repas: hasRepas,
+    amType: selAmType,
+    pmType: selPmType,
+  };
+  saveEntries();
+  closeModal();
+  showToast(`✅ ${selDay} ${MOIS[curMo]} enregistré`);
+  renderPdfPage(curMo); // refresh canvas with new entry
+  renderHome();
+}
+
+// ═══════════════════════════════════
+// DOWNLOAD FILLED PDF
+// ═══════════════════════════════════
+async function downloadFilledPdf() {
+  if(!monthPdfs[curMo]){showToast('Pas de PDF pour ce mois');return;}
+  if(!window.PDFLib){
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+    });
+  }
+
+  showToast('Génération en cours…');
+  try {
+    const {PDFDocument, rgb, degrees, StandardFonts} = PDFLib;
+    const bytes = Uint8Array.from(atob(monthPdfs[curMo]), c=>c.charCodeAt(0));
+    const pdfDoc = await PDFDocument.load(bytes,{ignoreEncryption:true});
+    const pages  = pdfDoc.getPages();
+    // This PDF template is a single landscape page with the data grid directly on it.
+    const dataPage = pages[0];
+    const PH = dataPage.getHeight();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const FS = 5.5;
+
+    const prefix = `${curYear}-${String(curMo+1).padStart(2,'0')}-`;
+    const SPECIAL_LABEL = { vacances:'Vac', malade:'Malade', accident:'Accident' };
+    const BLACK = rgb(0,0,0);
+    Object.entries(dayEntries).filter(([k])=>k.startsWith(prefix)).forEach(([key,e])=>{
+      const d = parseInt(key.split('-')[2]);
+      const x = PDF.DAY1_X + (d-1)*PDF.DAY_SPACE; // = center X of column
+      const amType = e.amType || e.type || 'normal';
+      const pmType = e.pmType || (e.type ? e.type : 'normal');
+
+      function wv(text, pyY, fs) {
+        if(!text && text!==0) return;
+        const sz=fs||FS;
+        // x is already DAY1_X + (d-1)*DAY_SPACE = center of column
+        // pdf-lib Y = PAGE_H - pymupdf_Y (flip vertical)
+        // rotate(90) in pdf-lib = text goes bottom-to-top
+        // anchor point = bottom-left of text when rotated
+        dataPage.drawText(String(text),{
+          x: x - sz * 0.35,
+          y: PH - pyY + sz * 0.35,
+          size: sz, font: fontBold,
+          color: BLACK,
+          rotate: degrees(90),
+        });
+      }
+
+      // Matin
+      if(amType==='normal'){
+        if(e.matDeb) wv(fmtTime(e.matDeb),PDF.ROWS.mat_deb);
+        if(e.matFin) wv(fmtTime(e.matFin),PDF.ROWS.mat_fin);
+      } else if(SPECIAL_LABEL[amType]){
+        const lbl = SPECIAL_LABEL[amType];
+        const fsz = lbl.length>=7?3.2:lbl.length>=5?3.6:4.5;
+        wv(lbl, PDF.ROWS_CENTER.mat, fsz);
+      }
+
+      // Après-midi
+      if(pmType==='normal'){
+        if(e.amDeb) wv(fmtTime(e.amDeb),PDF.ROWS.apm_deb);
+        if(e.amFin) wv(fmtTime(e.amFin),PDF.ROWS.apm_fin);
+      } else if(SPECIAL_LABEL[pmType]){
+        const lbl = SPECIAL_LABEL[pmType];
+        const fsz = lbl.length>=7?3.2:lbl.length>=5?3.6:4.5;
+        wv(lbl, PDF.ROWS_CENTER.apm, fsz);
+      }
+
+      if(e.hours>0) wv(e.hours,PDF.ROWS.hrs);
+      if(e.repas) wv('1',PDF.ROWS.repas);
+    });
+
+    // Write monthly totals in the "Total heures ou de repas" column on the right.
+    // First cover the template's static printed values with a white box, then write ours.
+    const prefix2 = `${curYear}-${String(curMo+1).padStart(2,'0')}-`;
+    const allEnts2 = Object.entries(dayEntries).filter(([k])=>k.startsWith(prefix2));
+    let totalH = 0, totalRepas = 0;
+    allEnts2.forEach(([,e]) => {
+      totalH += e.hours||0;
+      if(e.repas) totalRepas++;
+    });
+    const tx = PDF.TOTAL_X;
+    const FS_TOT = 8;
+    const boxW = 36, boxH = 12;
+
+    // Cover + write total heures (black)
+    dataPage.drawRectangle({
+      x: tx - boxW/2, y: PH - PDF.ROWS.hrs - boxH/2,
+      width: boxW, height: boxH, color: rgb(1,1,1),
+    });
+    dataPage.drawText(fmtH(totalH), {
+      x: tx - (fmtH(totalH).length * FS_TOT * 0.28),
+      y: PH - PDF.ROWS.hrs - FS_TOT*0.35,
+      size: FS_TOT, font: fontBold,
+      color: BLACK,
+    });
+
+    // Cover + write total repas (black)
+    dataPage.drawRectangle({
+      x: tx - boxW/2, y: PH - PDF.ROWS.repas - boxH/2,
+      width: boxW, height: boxH, color: rgb(1,1,1),
+    });
+    dataPage.drawText(String(totalRepas), {
+      x: tx - (String(totalRepas).length * FS_TOT * 0.28),
+      y: PH - PDF.ROWS.repas - FS_TOT*0.35,
+      size: FS_TOT, font: fontBold,
+      color: BLACK,
+    });
+
+    const outBytes = await pdfDoc.save();
+    const blob = new Blob([outBytes],{type:'application/pdf'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href=url; a.download=`Feuille_${MOIS[curMo]}_${curYear}.pdf`; a.click();
+    showToast('PDF téléchargé !');
+  } catch(err){
+    console.error(err);
+    showToast('Erreur: '+err.message);
+  }
+}
+
+// ═══════════════════════════════════
+// PARAMS — PDF SLOTS
+// ═══════════════════════════════════
+function renderPdfSlots() {
+  const container = $('pdfSlots');
+  container.innerHTML = MOIS.map((m,i)=>{
+    let status='—', cls='';
+    if(monthPdfs[i]){
+      if(isDefaultPdf[i]){ status='🗂️ Modèle par défaut'; cls='ok'; }
+      else { status='✅ Importé'; cls='ok'; }
+    }
+    return `
+    <div class="p-row" onclick="triggerPdfUpload(${i})">
+      <span class="p-row-lbl">${m}</span>
+      <span class="p-row-status ${cls}" id="pst_${i}">${status}</span>
+      <span style="color:var(--muted);margin-left:6px">›</span>
+    </div>`;
+  }).join('');
+
+  // Create hidden file inputs
+  $('pdfInputs').innerHTML = MOIS.map((_,i)=>
+    `<input type="file" id="pfi_${i}" accept=".pdf" onchange="onPdfUpload(${i},this.files[0])">`
+  ).join('');
+}
+
+function triggerPdfUpload(i) {
+  $(`pfi_${i}`).click();
+}
+
+function onPdfUpload(i, file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result.split(',')[1];
+    savePdf(i, b64);
+    const el=$(`pst_${i}`);
+    if(el){el.textContent='✅ Importé';el.classList.add('ok');}
+    renderHome();
+    showToast(`✅ PDF ${MOIS[i]} importé !`);
+  };
+  reader.readAsDataURL(file);
+}
+
+function goUploadPdf(moIdx) {
+  showParams();
+  setTimeout(()=>triggerPdfUpload(moIdx), 300);
+}
+
+// ═══════════════════════════════════
+// CONFIG UI
+// ═══════════════════════════════════
+function loadCfgUI() {
+  $('cfgNom').value = cfg.nom||'';
+  $('cfgMd').value  = cfg.md; $('cfgMf').value = cfg.mf;
+  $('cfgAd').value  = cfg.ad; $('cfgAf').value = cfg.af;
+}
+
+// ═══════════════════════════════════
+// MODAL
+// ═══════════════════════════════════
+function closeModal(){ $('overlay').classList.remove('open'); }
+function closeOverlay(e){ if(e.target===$('overlay')) closeModal(); }
+
+// ═══════════════════════════════════
+// CALCULATRICE POPUP (historique partagé avec les autres modules)
+// ═══════════════════════════════════
+let calcExpr='';
+let calcShowingResult=false;
+const CALC_HISTORY_KEY='rv6_calc_history';
+const CALC_HISTORY_MAX_DAYS=3;
+
+function calcPurgeHistory(){
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem(CALC_HISTORY_KEY))||[];}catch(e){hist=[];}
+  const limit=Date.now()-(CALC_HISTORY_MAX_DAYS*24*60*60*1000);
+  hist=hist.filter(h=>h.ts>=limit);
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify(hist));
+  return hist;
+}
+function calcGetHistory(){try{return JSON.parse(localStorage.getItem(CALC_HISTORY_KEY))||[];}catch(e){return [];}}
+function calcAddToHistory(expr,result){
+  const hist=calcGetHistory();
+  hist.unshift({expr,result,ts:Date.now()});
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify(hist.slice(0,50)));
+  calcRenderHistory();
+}
+function calcRenderHistory(){
+  const box=document.getElementById('calc-history-list');
+  if(!box)return;
+  const hist=calcGetHistory();
+  if(hist.length===0){
+    box.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:6px 0;">Aucun calcul récent</div>';
+    return;
+  }
+  box.innerHTML=hist.map(h=>{
+    const exprDisp=h.expr.replace(/\*/g,'×').replace(/\//g,'÷');
+    return `<div class="calc-history-row" onclick="calcUseHistory('${h.result}')">
+      <span class="calc-history-expr">${exprDisp} =</span>
+      <span class="calc-history-result">${h.result}</span>
+    </div>`;
+  }).join('');
+}
+function calcUseHistory(result){
+  if(calcExpr===''||calcShowingResult){calcExpr=String(result);}
+  else{calcExpr+=String(result);}
+  calcShowingResult=false;
+  calcRefreshDisplay();
+}
+function calcClearHistory(){
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify([]));
+  calcRenderHistory();
+}
+function openCalculatrice(){
+  calcExpr='';
+  calcShowingResult=false;
+  calcPurgeHistory();
+  calcRefreshDisplay();
+  calcRenderHistory();
+  document.getElementById('overlay-calc').classList.add('open');
+}
+function closeCalculatrice(e){
+  if(e&&e.target.id!=='overlay-calc')return;
+  document.getElementById('overlay-calc').classList.remove('open');
+}
+function calcRefreshDisplay(){
+  const line=document.getElementById('calc-expr-line');
+  const d=document.getElementById('calc-display');
+  if(calcExpr===''){line.textContent='';d.textContent='0';return;}
+  line.textContent='';
+  d.textContent=calcExpr.replace(/\*/g,'×').replace(/\//g,'÷');
+}
+function calcDigit(d){
+  if(calcShowingResult){calcExpr='';calcShowingResult=false;}
+  if(d==='.'){
+    const parts=calcExpr.split(/[+\-*/]/);
+    const last=parts[parts.length-1];
+    if(last.includes('.'))return;
+    if(last==='')calcExpr+='0';
+  }
+  calcExpr+=d;
+  calcRefreshDisplay();
+}
+function calcOp(op){
+  if(calcExpr==='')return;
+  if(calcShowingResult){calcShowingResult=false;}
+  const lastChar=calcExpr.slice(-1);
+  if('+-*/'.includes(lastChar)){calcExpr=calcExpr.slice(0,-1)+op;}
+  else{calcExpr+=op;}
+  calcRefreshDisplay();
+}
+function calcClear(){calcExpr='';calcShowingResult=false;calcRefreshDisplay();}
+function calcBackspace(){
+  if(calcShowingResult){calcExpr='';calcShowingResult=false;}
+  else{calcExpr=calcExpr.slice(0,-1);}
+  calcRefreshDisplay();
+}
+function calcEquals(){
+  if(calcExpr===''||calcShowingResult)return;
+  let safeExpr=calcExpr.replace(/[+\-*/]+$/,'');
+  if(!/^[0-9.+\-*/]+$/.test(safeExpr)){calcClear();return;}
+  try{
+    const result=Function('"use strict"; return ('+safeExpr+')')();
+    if(!isFinite(result)){
+      document.getElementById('calc-expr-line').textContent='';
+      document.getElementById('calc-display').textContent='Erreur';
+      calcExpr='';
+      return;
+    }
+    const rounded=Math.round(result*100000)/100000;
+    const exprForHistory=safeExpr;
+    document.getElementById('calc-expr-line').textContent=safeExpr.replace(/\*/g,'×').replace(/\//g,'÷')+' =';
+    document.getElementById('calc-display').textContent=String(rounded);
+    calcExpr=String(rounded);
+    calcShowingResult=true;
+    calcAddToHistory(exprForHistory,rounded);
+  }catch(e){
+    document.getElementById('calc-expr-line').textContent='';
+    document.getElementById('calc-display').textContent='Erreur';
+    calcExpr='';
+    calcShowingResult=false;
+  }
+}
+
+// ═══════════════════════════════════
+// BOOT — gated by Firebase Auth
+// ═══════════════════════════════════
+$('hdrSub').textContent = String(curYear);
+// Rien n'est visible avant la fin de l'auth (authGuard plein écran), donc on
+// attend de connaître l'utilisateur avant de charger quoi que ce soit — ça
+// évite tout risque de lire les données d'un autre compte sur le même appareil.
+
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = '../login.html'; return; }
+  currentUid = user.uid;
+  loadAll(currentUid);    // local-first : données déjà en cache pour CET utilisateur
+  renderHome();
+  await syncFromFirestore();
+  await loadDefaultPdfsIfNeeded(); // complète avec les modèles par défaut si besoin
+  $('authGuard').classList.remove('show');
+  renderHome();           // refresh with synced data
+  if (curView === 'viewPdf' && curMo >= 0) renderPdfPage(curMo);
+});
+</script>
+<script type="module" src="../notes.js"></script>
+</body>
+</html>

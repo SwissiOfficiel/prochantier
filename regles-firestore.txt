@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Règle générale : tout utilisateur authentifié (équipe Risse S.A.)
+    // peut lire et écrire l'ensemble des données de l'app.
+    // L'équipe est petite (~4 personnes) avec des droits égaux.
+    match /ressources/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /chantiers/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /machines_entretiens/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /machines_entries/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /machines_trash/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /machines_types/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /rapports/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /bons/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // Carnet d'heures — un document par utilisateur (config + entrées horaires)
+    match /carnet_heures/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // Carnet d'heures — PDF mensuels importés, un document par utilisateur+mois
+    match /carnet_heures_pdfs/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Notes — personnelles : chaque utilisateur ne lit/écrit que son propre document
+    match /notes_perso/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Notes — partagées avec toute l'équipe
+    match /notes_equipe/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Tout le reste : refusé par défaut
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

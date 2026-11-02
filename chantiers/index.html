@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script src="../config.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#D42D20">
+<title>Chantiers — ProChantier</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#D42D20;--navy2:#831C14;--yellow:#F0A500;--teal:#1A7F72;
+  --red:#E53935;--orange:#E67E22;--green:#2E7D32;
+  --bg:#F4F6FB;--bg2:#EAECF4;--card:#fff;
+  --border:#E0E4EF;--text:#1A2340;--text2:#4A5878;--text3:#9AA3BC;
+  --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
+  --r:14px;--rs:8px;
+  --sh:0 2px 12px rgba(212,45,32,.10);--shm:0 4px 24px rgba(212,45,32,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+ 
+/* ── HEADER ── */
+.header{background:var(--navy);padding-top:var(--safe-t);flex-shrink:0;box-shadow:0 2px 14px rgba(0,0,0,.28);}
+.header-inner{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;}
+.back-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.back-btn:active{background:rgba(255,255,255,.25);}
+.header-titles{flex:1;}
+.header-title{font-size:17px;font-weight:700;color:#fff;letter-spacing:-.3px;}
+.header-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px;letter-spacing:.8px;text-transform:uppercase;}
+.header-count{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;}
+.calc-btn-header{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.calc-btn-header:active{background:rgba(255,255,255,.25);}
+
+/* ── OVERLAY CALCULATRICE ── */
+.overlay-calc{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:flex-end;}
+.overlay-calc.open{display:flex;}
+.calc-sheet{background:var(--card);border-radius:20px 20px 0 0;width:100%;padding:20px 16px 32px;max-height:88vh;overflow-y:auto;}
+.calc-sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.calc-sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.calc-sheet-title{font-size:16px;font-weight:700;color:var(--text);}
+.btn-calc-clear-hist{border:none;background:none;font-size:16px;color:var(--text3);cursor:pointer;padding:4px 6px;}
+.btn-calc-clear-hist:active{opacity:.6;}
+.calc-expr-line{font-size:13px;color:var(--text3);text-align:right;min-height:16px;padding:0 14px;}
+.calc-display{background:var(--bg);border-radius:var(--rs);padding:10px 14px 16px;text-align:right;font-size:28px;font-weight:700;margin-bottom:10px;color:var(--text);overflow-x:auto;white-space:nowrap;}
+.calc-history-box{background:var(--bg);border-radius:var(--rs);padding:6px 12px;margin-bottom:10px;max-height:110px;overflow-y:auto;}
+.calc-history-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border);cursor:pointer;}
+.calc-history-row:first-child{border-top:none;}
+.calc-history-row:active{opacity:.6;}
+.calc-history-expr{font-size:12px;color:var(--text3);}
+.calc-history-result{font-size:12px;font-weight:700;color:var(--text);}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.calc-btn{border:none;background:var(--bg);color:var(--text);font-family:inherit;font-size:18px;font-weight:600;padding:16px 0;border-radius:var(--rs);cursor:pointer;}
+.calc-btn:active{opacity:.7;}
+.calc-btn.op{background:var(--navy);color:#fff;}
+.calc-btn.eq{background:var(--yellow);color:var(--navy);grid-row:span 2;}
+.calc-btn.span2{grid-column:span 2;}
+ 
+/* ── SCROLL ── */
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:16px 14px calc(var(--safe-b)+20px);}
+ 
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:8px;margin-bottom:16px;position:sticky;top:0;z-index:5;background:var(--bg);padding:2px 0 8px;}
+.search-input{flex:1;background:#fff;border:1.5px solid var(--border);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;padding:10px 14px;border-radius:24px;-webkit-appearance:none;transition:border-color .15s;}
+.search-input:focus{outline:none;border-color:var(--navy);}
+.search-input::placeholder{color:var(--text3);}
+.add-fab{flex-shrink:0;width:44px;height:44px;border-radius:50%;background:var(--navy);color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shm);transition:all .15s;}
+.add-fab:active{transform:scale(.92);}
+ 
+/* ── FILTRES STATUT ── */
+.filter-row{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;}
+.filter-row::-webkit-scrollbar{display:none;}
+.filter-chip{flex-shrink:0;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:all .13s;white-space:nowrap;}
+.filter-chip.on{border-color:var(--navy);background:var(--navy);color:#fff;}
+ 
+/* ── CHANTIER CARD ── */
+.chantier-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:10px;overflow:hidden;cursor:pointer;transition:transform .13s,box-shadow .13s;}
+.chantier-card:active{transform:scale(.98);box-shadow:none;}
+ 
+.card-top{display:flex;align-items:stretch;gap:0;}
+.card-accent{width:5px;flex-shrink:0;}
+.card-body-wrap{flex:1;padding:13px 14px 13px 12px;min-width:0;}
+.card-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;}
+.card-name{font-size:15px;font-weight:700;color:var(--text);line-height:1.2;}
+.card-status-badge{flex-shrink:0;font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;}
+.status-actif{background:#E8F5E9;color:#2E7D32;}
+.status-pause{background:#FFF3E0;color:#E67E22;}
+.status-termine{background:#F3F4F6;color:#6B7280;}
+.status-prospect{background:#EEF2FF;color:#3B5BDB;}
+ 
+.card-meta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+.meta-pill{font-size:10px;font-weight:600;color:var(--text2);background:var(--bg);border:1px solid var(--border);padding:2px 8px;border-radius:10px;white-space:nowrap;}
+.meta-pill.accent{color:var(--teal);background:rgba(26,127,114,.06);border-color:rgba(26,127,114,.2);}
+ 
+.card-bottom{display:flex;align-items:center;justify-content:space-between;}
+.card-client{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-arrow{font-size:16px;color:var(--text3);flex-shrink:0;}
+ 
+/* ── EMPTY ── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;color:var(--text3);text-align:center;padding:40px 20px;}
+.empty-icon{font-size:52px;margin-bottom:14px;opacity:.5;}
+.empty-txt{font-size:14px;font-weight:600;color:var(--text2);}
+.empty-hint{font-size:12px;margin-top:6px;}
+ 
+/* ── MODAL AJOUT ── */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:300;display:none;align-items:flex-end;backdrop-filter:blur(2px);}
+.modal-ov.open{display:flex;}
+.modal-sh{background:#fff;border-radius:22px 22px 0 0;width:100%;max-height:92vh;display:flex;flex-direction:column;}
+.modal-drag{padding:14px 16px 0;}
+.modal-handle{width:36px;height:4px;background:var(--bg2);border-radius:2px;margin:0 auto 14px;}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:0 16px 14px;border-bottom:1px solid var(--border);}
+.modal-title{font-size:17px;font-weight:700;color:var(--navy);}
+.modal-close{width:30px;height:30px;border-radius:50%;background:var(--bg);border:none;font-size:16px;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-body{flex:1;overflow-y:auto;padding:16px;}
+.modal-footer{padding:12px 16px calc(12px + var(--safe-b));border-top:1px solid var(--border);}
+ 
+/* ── FORM ── */
+.fsec{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 10px;display:flex;align-items:center;gap:8px;}
+.fsec:first-child{margin-top:0;}
+.fsec::after{content:'';flex:1;height:1px;background:var(--border);}
+.field{margin-bottom:10px;}
+.field label{display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1.5px solid var(--border);color:var(--text);font-family:'Inter',sans-serif;font-size:15px;font-weight:500;padding:11px 13px;border-radius:var(--rs);-webkit-appearance:none;appearance:none;transition:border-color .15s;}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239AA3BC' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+.field textarea{min-height:72px;resize:vertical;line-height:1.5;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--navy);background:#fff;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;font-weight:700;font-size:14px;padding:13px 18px;border:none;border-radius:var(--rs);cursor:pointer;transition:all .14s;width:100%;}
+.btn:active{transform:scale(.97);}
+.btn-navy{background:var(--navy);color:#fff;}
+.btn-ghost{background:#fff;color:var(--text2);border:1.5px solid var(--border);}
+.btn-danger{background:#FFF0F0;color:var(--red);border:1.5px solid rgba(229,57,53,.2);}
+.btn-sm{padding:10px 14px;font-size:13px;}
+.mt8{margin-top:8px;}
+ 
+/* ── COULEURS SÉLECTEUR ── */
+.color-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.color-dot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .13s;}
+.color-dot.sel{border-color:var(--navy);transform:scale(1.18);}
+ 
+/* ── DETAIL SHEET ── */
+/* ═══ CHANTIER DETAIL — page plein écran avec onglets ═══ */
+.detail-ov{position:fixed;inset:0;background:var(--bg);z-index:250;display:none;flex-direction:column;}
+.detail-ov.open{display:flex;}
+.det-header{background:var(--navy);flex-shrink:0;padding-top:var(--safe-t);box-shadow:0 2px 14px rgba(0,0,0,.28);}
+.det-header-inner{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;}
+.det-header-titles{flex:1;min-width:0;}
+.det-header-name{font-size:17px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.det-header-meta{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;display:flex;align-items:center;gap:6px;}
+.det-tabs{display:flex;gap:6px;padding:0 12px 12px;}
+.det-tab{flex:1;background:rgba(255,255,255,.1);color:rgba(255,255,255,.65);border:none;border-radius:8px;padding:9px 4px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;}
+.det-tab.active{background:var(--yellow);color:var(--navy);}
+.det-tab-content{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;}
+.det-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--bg2);}
+.det-row:last-child{border-bottom:none;}
+.det-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;}
+.det-val{font-size:14px;font-weight:600;color:var(--text);text-align:right;max-width:55%;}
+.det-notes{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:12px;font-size:13px;color:var(--text2);line-height:1.5;margin-top:12px;}
+.det-info-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:4px 14px;box-shadow:var(--sh);}
+.det-file-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;align-items:center;gap:12px;box-shadow:var(--sh);margin-bottom:12px;flex-shrink:0;}
+.plan-list{display:flex;flex-direction:column;gap:10px;}
+.plan-list-row{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;align-items:center;gap:12px;box-shadow:var(--sh);cursor:pointer;}
+.plan-list-row:active{transform:scale(.98);}
+.plan-list-icon{font-size:24px;flex-shrink:0;}
+.plan-list-info{flex:1;min-width:0;}
+.plan-list-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.plan-list-meta{font-size:11px;color:var(--text3);margin-top:2px;}
+.plan-list-del{background:none;border:none;font-size:15px;opacity:.5;cursor:pointer;padding:6px;flex-shrink:0;}
+.plan-list-arrow{font-size:18px;color:var(--text3);flex-shrink:0;}
+.det-file-icon{font-size:30px;flex-shrink:0;}
+.det-file-info{flex:1;min-width:0;}
+.det-file-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.det-file-size{font-size:11px;color:var(--text3);margin-top:2px;}
+.det-file-actions{display:flex;gap:6px;flex-shrink:0;}
+.det-file-btn{border:none;border-radius:var(--rs);padding:8px 12px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;}
+.det-file-btn.primary{background:var(--navy);color:#fff;}
+.det-file-btn.ghost{background:var(--bg2);color:var(--text2);}
+.det-pdf-frame{width:100%;flex:1;min-height:0;border:none;border-radius:var(--rs);background:var(--bg2);}
+#det-tab-plan.plan-fullscreen{position:fixed;inset:0;z-index:500;background:#111214;padding:0;}
+#det-tab-plan.plan-fullscreen .det-pdf-frame{border-radius:0;}
+.plan-exit-btn{position:fixed;z-index:9999;top:calc(10px + env(safe-area-inset-top,0px));left:10px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;width:40px;height:40px;font-size:20px;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;}
+.plan-replace-btn{position:fixed;z-index:9999;top:calc(10px + env(safe-area-inset-top,0px));right:10px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:0 14px;height:40px;font-size:12px;font-weight:700;align-items:center;gap:6px;cursor:pointer;font-family:inherit;}
+.det-empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:20px;}
+.det-empty-icon{font-size:44px;opacity:.5;}
+.det-empty-text{font-size:13px;color:var(--text3);font-weight:600;}
+.det-empty-btn{background:var(--navy);color:#fff;border:none;border-radius:var(--rs);padding:12px 20px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+.det-footer{padding:12px 0 4px;flex-shrink:0;}
+ 
+/* ── STATUT COLOR MAP ── */
+ 
+/* ── TOAST ── */
+.toast{position:fixed;bottom:calc(var(--safe-b)+12px);left:50%;transform:translateX(-50%) translateY(14px);background:var(--navy);color:#fff;font-size:13px;font-weight:600;padding:9px 20px;border-radius:30px;box-shadow:var(--shm);opacity:0;transition:all .26s;z-index:999;pointer-events:none;white-space:nowrap;border-left:3px solid var(--teal);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.chantier-card{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.st-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.st-btn{border:1.5px solid var(--border);background:#fff;color:var(--text2);border-radius:10px;padding:9px 2px;font:700 11px 'Inter',sans-serif;cursor:pointer}
+.st-btn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.menu-body{display:flex;flex-direction:column;gap:8px;padding-bottom:24px}
+.menu-btn{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font:600 14px 'Inter',sans-serif;text-align:left;color:var(--text);cursor:pointer}
+.menu-btn.danger{color:var(--red)}
+.chantier-card.dragging{opacity:.55;box-shadow:var(--shm)}
+.drag-h{touch-action:none;padding:0 14px;display:flex;align-items:center;font-size:22px;color:var(--text3)}
+.reorder-bar{display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12px;font-weight:600}
+.reorder-bar button{background:var(--yellow);color:var(--navy);border:none;border-radius:8px;padding:7px 16px;font:700 13px 'Inter',sans-serif}
+.rap-row{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
+.rap-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rap-date{font-weight:700;font-size:14px;color:var(--text)}
+.rap-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.rap-tx{font-size:12px;color:var(--text2);margin-top:6px}
+.rap-act{display:flex}
+.rap-act button{background:var(--bg);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;font-size:15px;margin-left:6px}
+.rap-det{display:none;border-top:1px solid var(--bg2);margin-top:10px;padding-top:8px;font-size:12px;color:var(--text);line-height:1.6}
+.rap-det.open{display:block}
+.rap-row.opened .rap-tx{display:none}
+.rap-det b{color:var(--text2)}
+.rap-lst{margin-top:4px}
+.rap-li{padding-left:10px;border-left:2px solid var(--bg2);margin:2px 0}
+</style>
+</head>
+<body>
+ 
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <button class="back-btn" onclick="window.location.href='../index.html'">🏠</button>
+    <div class="header-titles">
+      <div class="header-title">Chantiers</div>
+      <div class="header-sub" id="hdrSub"></div>
+    </div>
+    <div class="header-count" id="hdrCount">0</div>
+    <button class="calc-btn-header" onclick="openCalculatrice()" title="Calculatrice">🧮</button>
+  </div>
+</div>
+ 
+<!-- SCROLL -->
+<div class="scroll">
+  <div class="toolbar">
+    <input class="search-input" type="search" placeholder="🔍  Rechercher un chantier…" oninput="onSearch(this.value)" autocomplete="off">
+    <button class="add-fab" onclick="openAdd()">＋</button>
+  </div>
+ 
+  <!-- Filtres statut -->
+  <div class="filter-row" id="filterRow">
+    <div class="filter-chip on" data-filter="tous" onclick="setFilter('tous',this)">Tous</div>
+    <div class="filter-chip" data-filter="actif" onclick="setFilter('actif',this)">🟢 Actif</div>
+    <div class="filter-chip" data-filter="pause" onclick="setFilter('pause',this)">🟡 En pause</div>
+    <div class="filter-chip" data-filter="termine" onclick="setFilter('termine',this)">⬜ Terminé</div>
+    <div class="filter-chip" data-filter="prospect" onclick="setFilter('prospect',this)">🔵 Devisé</div>
+  </div>
+ 
+  <div id="listContainer"></div>
+</div>
+ 
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+ 
+<!-- ═══ MODAL AJOUT ═══ -->
+<div class="modal-ov" id="modal-add">
+  <div class="modal-sh">
+    <div class="modal-drag"><div class="modal-handle"></div></div>
+    <div class="modal-hdr">
+      <div class="modal-title" id="add-title">📁 Nouveau chantier</div>
+      <button class="modal-close" onclick="closeAdd()">✕</button>
+    </div>
+    <div class="modal-body">
+ 
+      <div class="fsec">Identification</div>
+      <div class="field"><label>Nom du chantier *</label><input type="text" id="add-nom" placeholder="Villa Dupont, Route cantonale..." autocomplete="off"></div>
+      <div class="fsec">Client & Lieu</div>
+      <div class="field"><label>Client / Maître d'ouvrage</label><input type="text" id="add-client" placeholder="M. et Mme Dupont" autocomplete="off"></div>
+      <div class="field"><label>Adresse / Lieu</label><input type="text" id="add-adresse" placeholder="Rue des Fleurs 12, 1000 Lausanne" autocomplete="off"></div>
+      <div class="field"><label>Commune</label><input type="text" id="add-commune" placeholder="Lausanne" autocomplete="off"></div>
+ 
+      <div class="fsec">Statut & Dates</div>
+      <div class="field"><label>Statut</label>
+        <select id="add-statut">
+          <option value="actif">🟢 Actif</option>
+          <option value="prospect">🔵 Devisé</option>
+          <option value="pause">🟡 En pause</option>
+          <option value="termine">⬜ Terminé</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Date début</label><input type="date" id="add-debut"></div>
+        <div class="field"><label>Date fin prévue</label><input type="date" id="add-fin"></div>
+      </div>
+ 
+      <div class="fsec">Informations financières</div>
+      <div class="field-row">
+        <div class="field"><label>Montant devis (CHF)</label><input type="number" id="add-montant" placeholder="45000" min="0" step="100" autocomplete="off"></div>
+        <div class="field"><label>Type de marché</label>
+          <select id="add-marche">
+            <option value="">—</option>
+            <option>Forfait</option>
+            <option>Régie</option>
+            <option>Série de prix</option>
+            <option>Contrat cadre</option>
+          </select>
+        </div>
+      </div>
+ 
+      <div class="fsec" id="pdf-fsec">Devis (PDF)</div>
+      <div id="pdf-zone">
+        <div id="pdf-preview" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:24px;">📄</span>
+          <div style="flex:1;min-width:0;">
+            <div id="pdf-name" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <div id="pdf-size" style="font-size:10px;color:var(--text3);"></div>
+          </div>
+          <button onclick="clearPdf()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px;">✕</button>
+        </div>
+        <button id="pdf-upload-btn" onclick="document.getElementById('pdf-input').click()" style="width:100%;padding:14px;border:1.5px dashed var(--border);border-radius:var(--rs);background:var(--bg);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;justify-content:center;gap:8px;" id="pdf-upload-btn">
+          📎 Ajouter le devis (PDF)
+        </button>
+        <input type="file" id="pdf-input" accept="application/pdf" style="display:none" onchange="handlePdfUpload(event)">
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;">Max. 2 Mo</div>
+      </div>
+ 
+      <div class="fsec">Couleur d'identification</div>
+      <div class="color-row" id="colorPicker"></div>
+ 
+      <div class="fsec">Description</div>
+      <div class="field"><label>Description</label><textarea id="add-notes" placeholder="Accès, contraintes particulières, contacts..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-navy" onclick="saveChantier()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- ═══ CHANTIER DETAIL — page plein écran ═══ -->
+<div class="detail-ov" id="detail-ov">
+  <button class="plan-exit-btn" id="plan-exit-btn" onclick="exitPlanFullscreen()" style="display:none;">‹</button>
+  <button class="plan-replace-btn" id="plan-replace-btn" onclick="document.getElementById('det-plan-replace-input').click()" style="display:none;">🔄 Remplacer</button>
+  <div class="det-header">
+    <div class="det-header-inner">
+      <button class="back-btn" onclick="closeDetail()">←</button>
+      <div class="det-header-titles">
+        <div class="det-header-name" id="det-nom"></div>
+        <div class="det-header-meta">
+          <span id="det-status-badge" class="card-status-badge"></span>
+          <span id="det-meta"></span>
+        </div>
+      </div>
+      <button class="back-btn" onclick="editCurrent()">✏️</button>
+    </div>
+    <div class="det-tabs">
+      <button class="det-tab active" id="det-tab-btn-infos" onclick="switchDetTab('infos')">ℹ️ Info</button>
+      <button class="det-tab" id="det-tab-btn-rapports" onclick="switchDetTab('rapports')">📋 Rapports</button>
+      <button class="det-tab" id="det-tab-btn-plan" onclick="switchDetTab('plan')">📐 Plan</button>
+    </div>
+  </div>
+
+  <div class="det-tab-content" id="det-tab-plan" style="display:none"></div>
+  <div class="det-tab-content" id="det-tab-rapports" style="display:none"></div>
+  <div class="det-tab-content" id="det-tab-infos">
+    <div class="st-row" id="det-st-row"></div>
+    <div class="det-info-card"><div id="det-rows"></div></div>
+    <div id="det-lnotes-wrap"></div>
+    <div id="det-devis-wrap"></div>
+    <div id="det-notes-wrap"></div>
+    <div class="det-footer">
+      <button class="btn btn-danger btn-sm" style="width:100%" onclick="deleteCurrentChantier()">🗑 Supprimer ce chantier</button>
+    </div>
+  </div>
+
+  <input type="file" id="det-plan-input" accept="application/pdf" style="display:none" onchange="handleDetFileUpload(event,'plan')">
+  <input type="file" id="det-plan-replace-input" accept="application/pdf" style="display:none" onchange="handleReplacePlanFile(event)">
+  <input type="file" id="det-devis-input" accept="application/pdf" style="display:none" onchange="handleDetFileUpload(event,'pdf')">
+</div>
+ 
+<!-- OVERLAY CALCULATRICE -->
+<div class="overlay-calc" id="overlay-calc" onclick="closeCalculatrice(event)">
+  <div class="calc-sheet">
+    <div class="calc-sheet-handle"></div>
+    <div class="calc-sheet-header">
+      <div class="calc-sheet-title">🧮 Calculatrice</div>
+      <button class="btn-calc-clear-hist" onclick="calcClearHistory()">🗑️</button>
+    </div>
+    <div class="calc-expr-line" id="calc-expr-line"></div>
+    <div class="calc-display" id="calc-display">0</div>
+    <div class="calc-history-box" id="calc-history-list"></div>
+    <div class="calc-grid">
+      <button class="calc-btn" onclick="calcClear()">C</button>
+      <button class="calc-btn" onclick="calcBackspace()">⌫</button>
+      <button class="calc-btn op" onclick="calcOp('/')">÷</button>
+      <button class="calc-btn op" onclick="calcOp('*')">×</button>
+      <button class="calc-btn" onclick="calcDigit('7')">7</button>
+      <button class="calc-btn" onclick="calcDigit('8')">8</button>
+      <button class="calc-btn" onclick="calcDigit('9')">9</button>
+      <button class="calc-btn op" onclick="calcOp('-')">−</button>
+      <button class="calc-btn" onclick="calcDigit('4')">4</button>
+      <button class="calc-btn" onclick="calcDigit('5')">5</button>
+      <button class="calc-btn" onclick="calcDigit('6')">6</button>
+      <button class="calc-btn op" onclick="calcOp('+')">+</button>
+      <button class="calc-btn" onclick="calcDigit('1')">1</button>
+      <button class="calc-btn" onclick="calcDigit('2')">2</button>
+      <button class="calc-btn" onclick="calcDigit('3')">3</button>
+      <button class="calc-btn eq" onclick="calcEquals()">=</button>
+      <button class="calc-btn span2" onclick="calcDigit('0')">0</button>
+      <button class="calc-btn" onclick="calcDigit('.')">.</button>
+    </div>
+  </div>
+</div>
+ 
+<script type="module">
+// ── FIREBASE ────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+// Firebase Storage mis de côté pour l'instant (nécessite le plan payant Blaze) —
+// les PDF (plans/devis) sont stockés en local via IndexedDB, voir plus bas.
+
+const firebaseConfig = window.APP_CONFIG.firebase;
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// Auth guard
+onAuthStateChanged(auth, user => {
+  if (!user) { window.location.href = '../login.html'; return; }
+  initApp();
+});
+
+// ════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════
+const KEY = 'rv6_chantiers_v1'; // clé dédiée au module Chantiers (riche)
+// rv6_c = liste simple de noms partagée avec Machines/Rapport (maintenue en sync)
+const KEY_SIMPLE = 'rv6_c';
+ 
+const COLORS = ['#D42D20','#1A7F72','#F0A500','#E53935','#E67E22','#2E7D32','#6C3483','#1565C0','#00838F','#4E342E','#546E7A','#1A2340'];
+ 
+const STATUS_LABEL = { actif:'Actif', pause:'En pause', termine:'Terminé', prospect:'Devisé' };
+const STATUS_CLASS = { actif:'status-actif', pause:'status-pause', termine:'status-termine', prospect:'status-prospect' };
+ 
+let currentFilter = 'tous';
+let currentSearch = '';
+let currentDetailId = null;
+let selectedColor = COLORS[0];
+let currentPdf = null; // {name, size}
+let currentPdfFile = null; // fichier choisi dans le formulaire
+ 
+// ════════════════════════════════════════════
+// STORAGE
+// ════════════════════════════════════════════
+
+// ── IndexedDB pour les fichiers PDF (plans + devis) ──────────────────────
+// Évite la limite ~5-10 Mo de localStorage/Firestore : les PDF ne quittent
+// jamais l'appareil pour l'instant (pas de synchro cloud), juste stockés en
+// local dans une vraie base de données de fichiers, prévue pour ça.
+const PDF_DB_NAME = 'risse_pdfs';
+const PDF_STORE = 'pdfs';
+let pdfDbPromise = null;
+function openPdfDb(){
+  if(pdfDbPromise) return pdfDbPromise;
+  pdfDbPromise = new Promise((resolve, reject)=>{
+    const req = indexedDB.open(PDF_DB_NAME, 1);
+    req.onupgradeneeded = ()=>{ req.result.createObjectStore(PDF_STORE); };
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = ()=>reject(req.error);
+  });
+  return pdfDbPromise;
+}
+async function savePdfBlob(key, blob){
+  const dbase = await openPdfDb();
+  return new Promise((resolve, reject)=>{
+    const tx = dbase.transaction(PDF_STORE, 'readwrite');
+    tx.objectStore(PDF_STORE).put(blob, key);
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = ()=>reject(tx.error);
+  });
+}
+async function getPdfBlob(key){
+  const dbase = await openPdfDb();
+  return new Promise((resolve, reject)=>{
+    const tx = dbase.transaction(PDF_STORE, 'readonly');
+    const req = tx.objectStore(PDF_STORE).get(key);
+    req.onsuccess = ()=>{
+      if(!req.result) console.warn('🔎 [IndexedDB] Clé introuvable :', key);
+      resolve(req.result || null);
+    };
+    req.onerror = ()=>{ console.error('🔎 [IndexedDB] Erreur de lecture pour', key, req.error); reject(req.error); };
+  });
+}
+async function deletePdfBlob(key){
+  const dbase = await openPdfDb();
+  return new Promise((resolve, reject)=>{
+    const tx = dbase.transaction(PDF_STORE, 'readwrite');
+    tx.objectStore(PDF_STORE).delete(key);
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = ()=>reject(tx.error);
+  });
+}
+// Cache des URL objet déjà créées cette session, pour ne pas en recréer à chaque appel
+const blobUrlCache = {};
+async function getPdfObjectUrl(key){
+  if(blobUrlCache[key]) return blobUrlCache[key];
+  const blob = await getPdfBlob(key);
+  if(!blob) return null;
+  const url = URL.createObjectURL(blob);
+  blobUrlCache[key] = url;
+  console.log('🔎 [IndexedDB] Blob trouvé pour', key, '—', (blob.size/1024).toFixed(0), 'Ko');
+  return url;
+}
+// Résout une URL utilisable pour un fichier (plan ou devis), quel que soit son mode
+// de stockage : nouveau (IndexedDB, via pdfKey) ou ancien (base64 direct ou URL
+// Firebase Storage encore présente dans `data`, pour la rétrocompatibilité).
+async function getFileUrl(fileObj){
+  if(!fileObj){ console.warn('🔎 [getFileUrl] fileObj vide'); return null; }
+  console.log('🔎 [getFileUrl] recherche pour', {pdfKey:fileObj.pdfKey, hasData:!!fileObj.data});
+  if(fileObj.pdfKey) return await getPdfObjectUrl(fileObj.pdfKey);
+  if(fileObj.data) return fileObj.data;
+  return null;
+}
+
+function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]'); } catch(e){ return []; } }
+function save(d) {
+  // 1. localStorage
+  try {
+    localStorage.setItem(KEY, JSON.stringify(d));
+    // Sync liste simple rv6_c pour les autres modules
+    const simple = d.filter(c=>c.statut==='actif'||!c.statut).map(c=>c.nom);
+    localStorage.setItem(KEY_SIMPLE, JSON.stringify(simple));
+  } catch (e) {
+    console.error('❌ localStorage save error:', e);
+    showToast('❌ Sauvegarde locale échouée : '+e.name+' — '+e.message, 8000);
+    return false;
+  }
+  // 2. Firestore (async, pas bloquant) — jamais laissé planter l'appelant :
+  // Firestore refuse les valeurs `undefined` (contrairement à localStorage), donc
+  // on nettoie profondément avant d'envoyer, et on encapsule setDoc() lui-même
+  // dans un try/catch (il peut lever une exception SYNCHRONE avant même de
+  // renvoyer une promesse, ce que .catch() seul ne rattrape pas).
+  if (auth.currentUser) {
+    try{
+      // Plans et devis restent 100% locaux (fichiers dans IndexedDB, propres à
+      // cet appareil) — inutile et risqué de les envoyer sur Firestore (trop
+      // volumineux, et un autre appareil ne pourrait de toute façon pas ouvrir
+      // les fichiers qu'il n'a pas). On ne synchronise que les infos du chantier.
+      const forFirestore = d.map(c=>{
+        const copy = {...c};
+        delete copy.plans; copy.pdf = (c.pdf && c.pdf.parts) ? {name:c.pdf.name,size:c.pdf.size,pdfKey:c.pdf.pdfKey,parts:c.pdf.parts} : undefined;
+        delete copy.plan; delete copy.planMeasures; // ancien format legacy
+        return copy;
+      });
+      const issue = findNestedArrayIssue(forFirestore, 'items');
+      if (issue) {
+        console.warn('🔎 [Diagnostic] Structure suspecte pour Firestore, trouvée à :', issue);
+        showToast('🔎 Diagnostic : '+issue, 6000);
+      }
+      const cleanD = stripUndefinedDeep(forFirestore);
+      setDoc(doc(db, 'chantiers', 'data'), { items: cleanD, updatedAt: Date.now() })
+        .catch(e => {
+          console.warn('Firestore save error:', e);
+          if (!issue) showToast('⚠️ Sync Firestore échouée : '+e.message, 6000);
+        });
+    }catch(e){
+      console.error('❌ setDoc() a levé une exception synchrone:', e);
+      showToast('⚠️ Sync Firestore échouée : '+e.message, 6000);
+    }
+  }
+  return true;
+}
+
+// Retire récursivement toutes les valeurs `undefined` d'un objet/tableau —
+// Firestore les refuse catégoriquement (contrairement à localStorage/JSON).
+function stripUndefinedDeep(value){
+  if (Array.isArray(value)) return value.map(stripUndefinedDeep);
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    const out = {};
+    Object.keys(value).forEach(k=>{
+      if (value[k] !== undefined) out[k] = stripUndefinedDeep(value[k]);
+    });
+    return out;
+  }
+  return value;
+}
+
+// Repère un tableau qui contient directement un autre tableau (interdit par Firestore),
+// et retourne le chemin exact où ça se produit, pour cibler le champ fautif.
+function findNestedArrayIssue(val, path) {
+  if (Array.isArray(val)) {
+    for (let i=0; i<val.length; i++) {
+      if (Array.isArray(val[i])) return path+'['+i+'] (tableau direct dans un tableau)';
+      const r = findNestedArrayIssue(val[i], path+'['+i+']');
+      if (r) return r;
+    }
+  } else if (val && typeof val === 'object') {
+    for (const k of Object.keys(val)) {
+      const r = findNestedArrayIssue(val[k], path+'.'+k);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+async function syncFromFirestore() {
+  try {
+    const snap = await getDoc(doc(db, 'chantiers', 'data'));
+    if (snap.exists()) {
+      const remoteItems = snap.data().items || [];
+      const localItems = load(); // ce qu'on a déjà sur CET appareil (plans/devis inclus)
+      const localById = {};
+      localItems.forEach(c => { localById[c.id] = c; });
+
+      // Fusion : les infos du chantier viennent du cloud, mais plans/devis restent
+      // ceux déjà présents localement — ils ne sont jamais synchronisés (fichiers
+      // trop volumineux pour Firestore, stockés uniquement dans IndexedDB de
+      // cet appareil), donc le cloud n'en a de toute façon jamais connaissance.
+      const merged = remoteItems.map(remote => {
+        const localMatch = localById[remote.id];
+        return {
+          ...remote,
+          plans: (localMatch && localMatch.plans) || [],
+          pdf: (localMatch && localMatch.pdf) || remote.pdf || null,
+        };
+      });
+
+      localStorage.setItem(KEY, JSON.stringify(merged));
+      // Sync liste simple aussi
+      const simple = merged.filter(c=>c.statut==='actif'||!c.statut).map(c=>c.nom);
+      localStorage.setItem(KEY_SIMPLE, JSON.stringify(simple));
+    }
+  } catch(e) {
+    console.warn('Firestore sync error:', e);
+  }
+}
+ 
+// ════════════════════════════════════════════
+// RENDU LISTE
+// ════════════════════════════════════════════
+function renderList() {
+  let data = load();
+  const q = currentSearch.toLowerCase();
+ 
+  // Filtre statut
+  if (currentFilter !== 'tous') data = data.filter(c => c.statut === currentFilter);
+  // Filtre recherche
+  if (q) data = data.filter(c => Object.values(c).some(v=>String(v).toLowerCase().includes(q)));
+ 
+  const el = document.getElementById('listContainer');
+  const total = load().length;
+  document.getElementById('hdrCount').textContent = total;
+ 
+  if (!data.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📁</div><div class="empty-txt">${q||currentFilter!=='tous'?'Aucun résultat':'Aucun chantier'}</div><div class="empty-hint">${q||currentFilter!=='tous'?'Modifiez les filtres':'Appuyez sur ＋ pour créer le premier'}</div></div>`;
+    return;
+  }
+ 
+  el.innerHTML = (reorderMode?'<div class="reorder-bar"><span>Glisse ☰ pour changer l\'ordre</span><button onclick="endReorder()">OK</button></div>':'') + data.map(c => {
+    const color = c.color || COLORS[0];
+    const pills = [];
+    if (c.commune) pills.push({ label: '📍 '+c.commune });
+    if (c.debut) pills.push({ label: fmtDate(c.debut) });
+    if (c.fin) pills.push({ label: '→ '+fmtDate(c.fin) });
+    if (c.montant) pills.push({ label: 'CHF '+Number(c.montant).toLocaleString('fr-CH'), accent: true });
+    if (c.marche) pills.push({ label: c.marche });
+    const planCount = getPlansOf(c).length;
+    if (planCount) pills.push({ label: '📐 '+(planCount>1?planCount+' plans':'Plan') });
+    if (c.pdf && (c.pdf.data||c.pdf.pdfKey)) pills.push({ label: '📄 Devis' });
+ 
+    return `
+    <div class="chantier-card" data-id="${c.id}" ${reorderMode?'':`onclick="cardTap('${c.id}')"`}>
+      <div class="card-top">${reorderMode?'<div class="drag-h">☰</div>':''}
+        <div class="card-accent" style="background:${color}"></div>
+        <div class="card-body-wrap">
+          <div class="card-title-row">
+            <div class="card-name">${esc(c.nom)}</div>
+            <div class="card-status-badge ${STATUS_CLASS[c.statut]||'status-actif'}">${STATUS_LABEL[c.statut]||'Actif'}</div>
+          </div>
+          ${pills.length?`<div class="card-meta">${pills.map(p=>`<span class="meta-pill${p.accent?' accent':''}">${esc(p.label)}</span>`).join('')}</div>`:''}
+          <div class="card-bottom">
+            <div class="card-client">${esc(c.client||'')}</div>
+            <div class="card-arrow">›</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+ 
+// ════════════════════════════════════════════
+// FILTRES & RECHERCHE
+// ════════════════════════════════════════════
+function setFilter(f, el) {
+  if (reorderMode) return;
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  renderList();
+}
+function onSearch(v) { if (reorderMode) return; currentSearch = v; renderList(); }
+ 
+// ════════════════════════════════════════════
+// COULEUR PICKER
+// ════════════════════════════════════════════
+function buildColorPicker() {
+  document.getElementById('colorPicker').innerHTML = COLORS.map(c=>
+    `<div class="color-dot${c===selectedColor?' sel':''}" style="background:${c}" onclick="selectColor('${c}')"></div>`
+  ).join('');
+}
+function selectColor(c) {
+  selectedColor = c;
+  document.querySelectorAll('.color-dot').forEach(d=>d.classList.toggle('sel', d.style.background===c||d.style.backgroundColor===c));
+}
+ 
+// ════════════════════════════════════════════
+// MODAL AJOUT
+// ════════════════════════════════════════════
+let editingId = null;
+function setAddMode(edit){
+  document.getElementById('add-title').textContent = edit?'✏️ Modifier le chantier':'📁 Nouveau chantier';
+  ['pdf-fsec','pdf-zone'].forEach(i=>{ document.getElementById(i).style.display = edit?'none':''; });
+}
+function openAdd(editId) {
+  const ec = typeof editId==='string' ? load().find(x=>x.id===editId) : null;
+  editingId = ec ? ec.id : null;
+  selectedColor = ec ? (ec.color||COLORS[0]) : COLORS[0];
+  buildColorPicker();
+  setAddMode(!!ec);
+  if (ec) {
+    const v=(id,x)=>{ document.getElementById(id).value = x||''; };
+    v('add-nom',ec.nom); v('add-client',ec.client); v('add-adresse',ec.adresse); v('add-commune',ec.commune);
+    v('add-statut',ec.statut||'actif'); v('add-debut',ec.debut); v('add-fin',ec.fin);
+    v('add-montant',ec.montant); v('add-marche',ec.marche); v('add-notes',ec.notes);
+  }
+  document.getElementById('modal-add').classList.add('open');
+  setTimeout(()=>document.getElementById('add-nom').focus(), 150);
+}
+function closeAdd() {
+  document.getElementById('modal-add').classList.remove('open');
+  ['add-nom','add-client','add-adresse','add-commune','add-montant','add-notes'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('add-statut').value='actif';
+  document.getElementById('add-marche').value='';
+  document.getElementById('add-debut').value='';
+  document.getElementById('add-fin').value='';
+  selectedColor = COLORS[0];
+  clearPdf();
+  editingId = null; setAddMode(false);
+}
+ 
+document.getElementById('modal-add').addEventListener('click',e=>{ if(e.target===document.getElementById('modal-add')) closeAdd(); });
+document.getElementById('add-nom').addEventListener('keydown',e=>{ if(e.key==='Enter') saveChantier(); });
+ 
+function g(id){ const el=document.getElementById(id); return el?(el.value||'').trim():''; }
+ 
+async function saveChantier() {
+  const nom = g('add-nom');
+  if (!nom) { highlight('add-nom'); return; }
+  if (editingId) {
+    const d = load(); const i = d.findIndex(x=>x.id===editingId); const id = editingId;
+    if (i>-1) {
+      d[i] = {...d[i], nom, client:g('add-client'), adresse:g('add-adresse'), commune:g('add-commune'), statut:g('add-statut')||'actif',
+        debut:g('add-debut'), fin:g('add-fin'), montant:g('add-montant'), marche:g('add-marche'), color:selectedColor, notes:g('add-notes')};
+      save(d);
+    }
+    closeAdd(); renderList();
+    if (currentDetailId===id) refreshDetail();
+    showToast('✓ Modifications enregistrées');
+    return;
+  }
+ 
+  const item = {
+    id: Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    nom,
+    client:   g('add-client'),
+    adresse:  g('add-adresse'),
+    commune:  g('add-commune'),
+    statut:   g('add-statut') || 'actif',
+    debut:    g('add-debut'),
+    fin:      g('add-fin'),
+    montant:  g('add-montant'),
+    marche:   g('add-marche'),
+    color:    selectedColor,
+    notes:    g('add-notes'),
+    pdf:      null,
+    plans:    [],
+    createdAt: new Date().toISOString(),
+    o: 1,
+    // Structure pour la suite
+    documents: [],
+    photos:    [],
+    contacts:  [],
+    travaux:   [],
+  };
+ 
+  if (currentPdfFile) {
+    try {
+      const key = `devis_${item.id}`;
+      await savePdfBlob(key, currentPdfFile);
+      const parts = await uploadDevis(item.id, currentPdfFile);
+      item.pdf = { name: currentPdfFile.name, size: (currentPdfFile.size/1024).toFixed(0)+' Ko', pdfKey: key, parts };
+    } catch(e) { console.error('Devis (création)', e); showToast('⚠️ Devis non enregistré : '+e.message, 6000); }
+  }
+  const data = [item, ...load()];
+  save(data);
+  closeAdd();
+  renderList();
+  showToast('📁 Chantier créé ✓');
+}
+ 
+function highlight(id) {
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.style.borderColor='var(--red)';
+  el.focus();
+  setTimeout(()=>el.style.borderColor='',2000);
+}
+ 
+// ════════════════════════════════════════════
+// PDF DEVIS
+// ════════════════════════════════════════════
+function handlePdfUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 2 * 1024 * 1024){
+    showToast('⚠️ Fichier trop lourd (max 2 Mo)');
+    event.target.value='';
+    return;
+  }
+  currentPdfFile = file;
+  currentPdf = { name: file.name, size: (file.size/1024).toFixed(0)+' Ko' };
+  updatePdfPreview();
+  event.target.value='';
+}
+ 
+function clearPdf(){
+  currentPdf = null; currentPdfFile = null;
+  updatePdfPreview();
+}
+ 
+function updatePdfPreview(){
+  const prev = document.getElementById('pdf-preview');
+  const btn  = document.getElementById('pdf-upload-btn');
+  if(!prev||!btn) return;
+  if(currentPdf){
+    document.getElementById('pdf-name').textContent = currentPdf.name;
+    document.getElementById('pdf-size').textContent = currentPdf.size;
+    prev.style.display = 'flex';
+    btn.style.display = 'none';
+  } else {
+    prev.style.display = 'none';
+    btn.style.display = 'flex';
+  }
+}
+ 
+async function viewPdf(chId){
+  const c = load().find(x=>x.id===chId);
+  if(!c || !c.pdf) return;
+  const url = await getFileUrl(c.pdf);
+  if(!url) { showToast('❌ Fichier introuvable en local'); return; }
+  openPdfViewer(c.pdf.name, url);
+}
+
+// ════════════════════════════════════════════
+// DETAIL — page plein écran à onglets (Plan / Devis / Infos)
+// ════════════════════════════════════════════
+let currentDetTab = 'infos';
+
+function openDetail(id) {
+  const c = load().find(x=>x.id===id);
+  if (!c) return;
+  currentDetailId = id;
+  activePlanId = null;
+  refreshDetail();
+  switchDetTab('infos');
+  document.getElementById('detail-ov').classList.add('open');
+}
+function editCurrent(){ openAdd(currentDetailId); }
+function refreshDetail(){
+  const c = load().find(x=>x.id===currentDetailId);
+  if (!c) return;
+  document.getElementById('det-nom').textContent = c.nom;
+  const b = document.getElementById('det-status-badge');
+  b.textContent = STATUS_LABEL[c.statut]||'Actif';
+  b.className = 'card-status-badge '+(STATUS_CLASS[c.statut]||'status-actif');
+  document.getElementById('det-meta').textContent = c.commune||'';
+  document.getElementById('det-st-row').innerHTML = ['actif','prospect','pause','termine'].map(k=>`<button class="st-btn${(c.statut||'actif')===k?' on':''}" onclick="setStatut('${k}')">${STATUS_LABEL[k]}</button>`).join('');
+  const rows = [];
+  const add = (l,v,raw) => { if(v) rows.push(`<div class="det-row"><span class="det-label">${l}</span><span class="det-val">${raw||esc(v)}</span></div>`); };
+  add('Client',c.client);
+  const adr = [c.adresse,c.commune].filter(Boolean).join(', ');
+  add('Adresse',c.adresse, c.adresse?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adr)}" target="_blank" rel="noopener" style="color:var(--navy)">${esc(c.adresse)} 📍</a>`:'');
+  add('Commune',c.commune);
+  add('Date début',c.debut?fmtDateLong(c.debut):'');
+  add('Date fin prévue',c.fin?fmtDateLong(c.fin):'');
+  add('Montant devis',c.montant?'CHF '+Number(c.montant).toLocaleString('fr-CH'):'');
+  add('Type de marché',c.marche);
+  document.getElementById('det-rows').innerHTML = rows.join('') || '<div class="det-row"><span class="det-label">Aucune information — utilise ✏️</span></div>';
+  document.getElementById('det-notes-wrap').innerHTML = c.notes
+    ? `<div class="det-label" style="margin-top:12px;margin-bottom:6px">Description</div><div class="det-notes">${esc(c.notes)}</div>` : '';
+  renderLinkedNotes();
+  _devisInlineOpen = false;
+  const f = c.pdf;
+  const bt = (t,fn,cls)=>`<button class="det-file-btn ${cls}" onclick="${fn}">${t}</button>`;
+  document.getElementById('det-devis-wrap').innerHTML = `<div class="det-file-card" style="margin-top:12px"><span class="det-file-icon">📄</span><div class="det-file-info"><div class="det-file-name">${f?esc(f.name):'Devis (PDF)'}</div><div class="det-file-size">${f?f.size:'Aucun fichier'}</div></div><div class="det-file-actions">${f?`<button id="det-devis-toggle" class="det-file-btn primary" onclick="toggleDevisInline()">Afficher</button>`+bt('⛶ Plein écran','viewDevis()','ghost'):''}${bt(f?'Remplacer':'Importer',"document.getElementById('det-devis-input').click()",'ghost')}</div></div><div id="det-devis-inline" style="display:none;margin-top:8px"></div>`;
+}
+function newLinkedNote(){ if(window.openNotes) window.openNotes({nouveau:true,chantierId:currentDetailId}); }
+window.newLinkedNote = newLinkedNote;
+function renderLinkedNotes(){
+  const el = document.getElementById('det-lnotes-wrap'); if(!el) return;
+  const list = (window.risseNotes && currentDetailId) ? window.risseNotes.forChantier(currentDetailId) : [];
+  const can = !!window.openNotes;
+  el.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px"><div class="det-label" style="margin:0">📝 Notes & listes</div>${can?`<button class="det-file-btn ghost" onclick="newLinkedNote()">＋ Note</button>`:''}</div>`
+   + (list.length ? list.map(n=>{
+      const it = n.items||[]; const prog = n.type==='liste' && it.length ? `${it.filter(x=>x.done).length}/${it.length}` : '';
+      const prev = n.type==='liste' ? it.slice(0,3).map(x=>(x.done?'✓ ':'• ')+x.t).join('\n') : (n.texte||'');
+      return `<div class="det-info-card" style="padding:10px 12px;margin-bottom:8px;cursor:pointer" onclick="openNotes({id:'${n.id}'})"><div style="font-size:14px;font-weight:700">${n.type==='liste'?'☑️':'📝'} ${esc(n.titre||'Sans titre')} ${prog?`<span style="font-size:11px;color:var(--text3);font-weight:600">${prog}</span>`:''} ${n.partage?'<span style="font-size:10px;color:var(--teal)">👥 Équipe</span>':''}</div>${prev?`<div style="font-size:12px;color:var(--text3);margin-top:3px;white-space:pre-line;max-height:3.6em;overflow:hidden">${esc(prev)}</div>`:''}</div>`;
+    }).join('') : `<div style="font-size:12px;color:var(--text3);padding:4px 0">Aucune note liée à ce chantier</div>`);
+}
+window.addEventListener('risse-notes-update', ()=>{ if(currentDetailId && document.getElementById('detail-ov').classList.contains('open')) renderLinkedNotes(); });
+
+function setStatut(k){
+  const d = load(); const i = d.findIndex(x=>x.id===currentDetailId); if (i<0) return;
+  d[i] = {...d[i], statut:k}; save(d); refreshDetail(); renderList();
+  showToast('✓ Statut : '+STATUS_LABEL[k]);
+}
+function switchDetTab(tab){
+  currentDetTab = tab;
+  if(tab==='plan') activePlanId = null;
+  renderDetTabButtons();
+  ['infos','plan','rapports'].forEach(t=>{ document.getElementById('det-tab-'+t).style.display = t===tab ? '' : 'none'; });
+  if(tab==='plan') renderDetFileTab('plan');
+  if(tab==='rapports') renderRapports();
+  updatePlanFullscreenState();
+}
+function renderDetTabButtons(){
+  ['infos','plan','rapports'].forEach(t=>document.getElementById('det-tab-btn-'+t).classList.toggle('active', t===currentDetTab));
+}
+
+// ── Devis synchronisé (Firestore, par morceaux ; max 2 Mo) ──
+async function uploadDevis(cid, file){
+  if (file.size > 2*1024*1024) { showToast('⚠️ Devis > 2 Mo : gardé sur cet appareil seulement', 6000); return 0; }
+  try{
+    const s = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
+    const n = Math.ceil(s.length/600000);
+    for (let i=0;i<n;i++) await setDoc(doc(db,'chantiers',`devis_${cid}_${i}`),{type:'devis',chantierId:cid,n:i,data:s.slice(i*600000,(i+1)*600000)});
+    return n;
+  }catch(e){ console.warn('Sync devis',e); showToast('⚠️ Devis enregistré ici mais pas synchronisé : '+e.message, 6000); return 0; }
+}
+async function ensureDevis(c){
+  const f = c.pdf; if(!f||!f.pdfKey||!f.parts) return;
+  if (await getPdfBlob(f.pdfKey)) return;
+  try{
+    let s=''; for (let i=0;i<f.parts;i++){ const d=await getDoc(doc(db,'chantiers',`devis_${c.id}_${i}`)); if(!d.exists()) return; s+=d.data().data; }
+    const b = await (await fetch(s)).blob(); await savePdfBlob(f.pdfKey,b); delete blobUrlCache[f.pdfKey];
+  }catch(e){ console.warn('Téléchargement devis',e); }
+}
+async function viewDevis(){
+  const c = load().find(x=>x.id===currentDetailId); if(!c||!c.pdf) return;
+  await ensureDevis(c);
+  const url = await getFileUrl(c.pdf);
+  if(!url){ showToast('❌ Devis introuvable sur cet appareil'); return; }
+  openPdfViewer(c.pdf.name, url);
+}
+let _pdfjsP=null;
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(_pdfjsP) return _pdfjsP;
+  _pdfjsP = new Promise((res,rej)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); };
+    sc.onerror=()=>{ _pdfjsP=null; rej(new Error('pdf.js indisponible')); };
+    document.head.appendChild(sc);
+  });
+  return _pdfjsP;
+}
+// Dessine toutes les pages du PDF dans `box` (marche aussi sur Android, contrairement à <iframe>/<embed>)
+async function renderPdfPages(box, url){
+  box.innerHTML='<div style="padding:24px;text-align:center;color:#8A93A6;font-size:12px">Chargement du PDF…</div>';
+  const lib = await loadPdfJs();
+  const pdf = await lib.getDocument(url).promise;
+  box.innerHTML='';
+  const w = box.clientWidth || 320, dpr = Math.min(window.devicePixelRatio||1, 2);
+  for(let i=1;i<=pdf.numPages;i++){
+    const pg = await pdf.getPage(i);
+    const base = pg.getViewport({scale:1});
+    const vp = pg.getViewport({scale:(w/base.width)*dpr});
+    const cv = document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+    cv.style.cssText='width:100%;display:block;margin:0 0 8px;background:#fff;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.25)';
+    box.appendChild(cv);
+    await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  }
+}
+let _devisInlineOpen=false;
+async function toggleDevisInline(){
+  const box=document.getElementById('det-devis-inline'); if(!box) return;
+  if(_devisInlineOpen){ box.style.display='none'; _devisInlineOpen=false; document.getElementById('det-devis-toggle').textContent='Afficher'; return; }
+  const c=load().find(x=>x.id===currentDetailId); if(!c||!c.pdf) return;
+  box.style.display='block'; _devisInlineOpen=true; document.getElementById('det-devis-toggle').textContent='Masquer';
+  try{
+    await ensureDevis(c);
+    const url=await getFileUrl(c.pdf);
+    if(!url) throw new Error('Devis introuvable sur cet appareil');
+    await renderPdfPages(box,url);
+  }catch(e){ box.innerHTML='<div style="padding:14px;color:#C0392B;font-size:12px">❌ '+esc(e.message)+'</div>'; }
+}
+window.toggleDevisInline = toggleDevisInline;
+function openPdfViewer(name, url){
+  let v = document.getElementById('pdf-viewer');
+  if(!v){
+    v = document.createElement('div'); v.id='pdf-viewer';
+    v.style.cssText='position:fixed;inset:0;z-index:600;background:#111214;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)';
+    v.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--navy);color:#fff"><button id="pdf-v-close" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:10px;height:36px;padding:0 14px;font-size:14px;font-weight:700">✕ Fermer</button><div id="pdf-v-name" style="flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div><a id="pdf-v-open" target="_blank" rel="noopener" style="color:#fff;font-size:13px;font-weight:600;text-decoration:none;background:rgba(255,255,255,.15);border-radius:10px;padding:9px 12px">↗ Ouvrir</a></div><div id="pdf-v-pages" style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch"></div>';
+    document.body.appendChild(v);
+    v.querySelector('#pdf-v-close').onclick=()=>{ v.style.display='none'; v.querySelector('#pdf-v-pages').innerHTML=''; };
+  }
+  v.querySelector('#pdf-v-name').textContent = name||'Devis';
+  v.querySelector('#pdf-v-open').href = url;
+  v.style.display='flex';
+  const pg = v.querySelector('#pdf-v-pages');
+  renderPdfPages(pg, url).catch(()=>{ pg.innerHTML='<iframe src="'+url+'" style="width:100%;height:100%;border:none;background:#fff"></iframe>'; });
+}
+
+// ── Rapports archivés du chantier (conservés jusqu'à suppression) ──
+const RAPK = 'rv6_ch_rapports';
+function rapLocal(){ try{ return JSON.parse(localStorage.getItem(RAPK)||'{}'); }catch(e){ return {}; } }
+async function loadRapports(cid){
+  try{
+    const s = await getDocs(query(collection(db,'chantiers'),where('chantierId','==',cid)));
+    const list = s.docs.map(d=>d.data()).filter(x=>x.type==='rapport').map(x=>x.report);
+    const a = rapLocal(); a[cid] = list; localStorage.setItem(RAPK,JSON.stringify(a));
+    return list;
+  }catch(e){ console.warn('Rapports',e); return rapLocal()[cid]||[]; }
+}
+function rapRow(r,ed){
+  const emp = (r.employes||[]).filter(e=>parseFloat(e.heures||0)>0);
+  const h = emp.reduce((t,e)=>t+parseFloat(e.heures),0);
+  const editing = ed && String(ed.id)===String(r.id);
+  const L = (t,v)=> v?`<div><b>${t} :</b> ${v}</div>`:'';
+  const LL = (t,a)=> a.length?`<div class="rap-lst"><b>${t} :</b>${a.map(x=>`<div class="rap-li">${x}</div>`).join('')}</div>`:'';
+  const loc = Object.values(r.locSelection||{}).filter(x=>x.qty>0).map(x=>`${esc(x.label)} ${x.qty} ${esc(x.unit)}`);
+  const fo = (r.fournitures_catalogue||[]).map(f=>`${esc(f.nom)} ${esc(f.qty)} ${esc(f.unit)}`);
+  const ev = (r.evacuations||[]).filter(e=>e.mat).map(e=>`${esc(e.mat)} ${esc(e.qte)} ${esc(e.unite)}`);
+  const me = (r.metres||[]).map(m=>`${esc(m.desc)} ${esc(m.total)} ${esc(m.unit)}`);
+  const tv = r.travaux||'';
+  return `<div class="rap-row"><div class="rap-top" onclick="this.parentNode.querySelector('.rap-det').classList.toggle('open');this.parentNode.classList.toggle('opened')"><div><div class="rap-date">${fmtDateLong(r.date)}</div><div class="rap-sub">${h.toFixed(1)} h · ${emp.length} pers.${editing?' · ✏️ en modification':''}</div></div><div class="rap-act"><button onclick="event.stopPropagation();rapEdit('${r.id}')">✏️</button><button onclick="event.stopPropagation();rapDel('${r.id}')">🗑</button></div></div>${tv?`<div class="rap-tx">${esc(tv.slice(0,90))}${tv.length>90?'…':''}</div>`:''}<div class="rap-det">${L('Rédigé par',esc(r.nom||''))}${LL('Équipe',emp.map(e=>`${esc(e.nom)} ${parseFloat(e.heures).toFixed(2)} h`))}${LL('Location',loc)}${LL('Fournitures',fo)}${LL('Évacuations',ev)}${LL('Métrés',me)}${L('Travaux',esc(tv).replace(/\n/g,'<br>'))}</div></div>`;
+}
+async function renderRapports(){
+  const cid = currentDetailId, el = document.getElementById('det-tab-rapports');
+  const draw = list => {
+    if (cid!==currentDetailId || currentDetTab!=='rapports') return;
+    list = [...list].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||(b.id-a.id));
+    document.getElementById('det-tab-btn-rapports').textContent = '📋 Rapports'+(list.length?' ('+list.length+')':'');
+    let ed = null; try{ ed = JSON.parse(localStorage.getItem('rj_edit_from')||'null'); }catch(e){}
+    el.innerHTML = list.length ? list.map(r=>rapRow(r,ed)).join('') : '<div class="det-empty-state"><div class="det-empty-icon">📋</div><div class="det-empty-text">Aucun rapport validé pour ce chantier</div></div>';
+  };
+  draw(rapLocal()[cid]||[]);
+  draw(await loadRapports(cid));
+}
+function rapEdit(id){
+  const r = (rapLocal()[currentDetailId]||[]).find(x=>String(x.id)===String(id)); if(!r) return;
+  localStorage.setItem('rj_edit_request', JSON.stringify(r));
+  window.location.href = '../rapport/index.html';
+}
+async function rapDel(id){
+  if (!confirm('Supprimer ce rapport du chantier ?')) return;
+  const a = rapLocal(); a[currentDetailId] = (a[currentDetailId]||[]).filter(x=>String(x.id)!==String(id));
+  localStorage.setItem(RAPK,JSON.stringify(a));
+  try{ await deleteDoc(doc(db,'chantiers',`rap_${currentDetailId}_${id}`)); }catch(e){ console.warn(e); }
+  renderRapports(); showToast('🗑 Rapport supprimé');
+}
+async function flushPending(){
+  try{
+    const q = JSON.parse(localStorage.getItem('rv6_ch_rap_pending')||'[]'); if(!q.length) return;
+    const rest = [];
+    for (const x of q){ try{ await setDoc(doc(db,'chantiers',`rap_${x.cid}_${x.report.id}`),{type:'rapport',chantierId:x.cid,report:stripUndefinedDeep(x.report),updatedAt:Date.now()}); }catch(e){ rest.push(x); } }
+    localStorage.setItem('rv6_ch_rap_pending',JSON.stringify(rest));
+  }catch(e){}
+}
+async function migrateRapports(){
+  if (localStorage.getItem('rv6_ch_rap_migr')) return;
+  try{
+    const reps = JSON.parse(localStorage.getItem('rj_reports_v1')||'[]'); const ch = load();
+    for (const r of reps){
+      const c = ch.find(x=>(x.nom||'').trim().toLowerCase()===(r.chantier||'').trim().toLowerCase());
+      if (c) await setDoc(doc(db,'chantiers',`rap_${c.id}_${r.id}`),{type:'rapport',chantierId:c.id,report:stripUndefinedDeep(r),updatedAt:Date.now()});
+    }
+    localStorage.setItem('rv6_ch_rap_migr','1');
+  }catch(e){ console.warn('Migration rapports',e); }
+}
+
+// ── Ordre manuel (l'ordre du tableau = ordre affiché, synchronisé via Firestore) ──
+function migrateOrder(){
+  const d = load();
+  if (!d.length || d.some(c=>c.o)) return;
+  const o = {actif:0,prospect:1,pause:2,termine:3};
+  d.sort((a,b)=>{ const x=(o[a.statut]||0)-(o[b.statut]||0); if(x) return x; if(a.debut&&b.debut) return b.debut.localeCompare(a.debut); return (a.nom||'').localeCompare(b.nom||''); });
+  save(d.map(c=>({...c,o:1})));
+}
+let reorderMode = false, dragEl = null;
+function startReorder(){
+  currentFilter = 'tous'; currentSearch = '';
+  document.querySelector('.search-input').value = '';
+  document.querySelectorAll('.filter-chip').forEach(x=>x.classList.toggle('on', x.dataset.filter==='tous'));
+  reorderMode = true; renderList();
+}
+function endReorder(){
+  const ids = [...document.querySelectorAll('#listContainer .chantier-card')].map(e=>e.dataset.id);
+  const by = Object.fromEntries(load().map(c=>[c.id,c]));
+  save(ids.map(i=>by[i]).filter(Boolean));
+  reorderMode = false; renderList(); showToast('✓ Ordre enregistré');
+}
+const LC = document.getElementById('listContainer');
+LC.addEventListener('pointerdown',e=>{
+  const h = e.target.closest('.drag-h');
+  if (h) { dragEl = h.closest('.chantier-card'); dragEl.classList.add('dragging'); h.setPointerCapture(e.pointerId); return; }
+  lpFired = false;
+  const card = e.target.closest('.chantier-card'); if (!card || reorderMode) return;
+  lpX = e.clientX; lpY = e.clientY; clearTimeout(lpTimer);
+  lpTimer = setTimeout(()=>{ lpFired = true; if (navigator.vibrate) navigator.vibrate(20); openMenu(card.dataset.id); }, 500);
+});
+LC.addEventListener('pointermove',e=>{
+  if (lpTimer && (Math.abs(e.clientX-lpX)>10 || Math.abs(e.clientY-lpY)>10)) { clearTimeout(lpTimer); lpTimer = null; }
+  if (!dragEl) return;
+  const t = document.elementFromPoint(e.clientX,e.clientY), o = t && t.closest('.chantier-card');
+  if (o && o!==dragEl && o.parentNode===LC) { const r=o.getBoundingClientRect(); LC.insertBefore(dragEl, e.clientY<r.top+r.height/2 ? o : o.nextSibling); }
+  const sc = document.querySelector('.scroll');
+  if (e.clientY<140) sc.scrollTop -= 12; else if (e.clientY>innerHeight-100) sc.scrollTop += 12;
+});
+['pointerup','pointercancel','pointerleave'].forEach(t=>LC.addEventListener(t,()=>{
+  clearTimeout(lpTimer); lpTimer = null;
+  if (dragEl) { dragEl.classList.remove('dragging'); dragEl = null; }
+}));
+LC.addEventListener('contextmenu',e=>{ if (e.target.closest('.chantier-card')) e.preventDefault(); });
+
+// ── Menu appui long ──
+let lpTimer = null, lpFired = false, lpX = 0, lpY = 0;
+function cardTap(id){ if (lpFired) { lpFired = false; return; } openDetail(id); }
+function openMenu(id){
+  const c = load().find(x=>x.id===id); if(!c) return;
+  const ov = document.createElement('div'); ov.className = 'modal-ov open'; ov.id = 'menu-ov';
+  ov.onclick = e=>{ if (e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div class="modal-sh"><div class="modal-drag"><div class="modal-handle"></div></div><div class="modal-hdr"><div class="modal-title">${esc(c.nom)}</div><button class="modal-close" onclick="menuClose()">✕</button></div><div class="modal-body menu-body"><button class="menu-btn" onclick="menuDo('order','${id}')">↕️ Réorganiser la liste</button><button class="menu-btn" onclick="menuDo('edit','${id}')">✏️ Modifier</button><div class="st-row">${['actif','prospect','pause','termine'].map(k=>`<button class="st-btn${(c.statut||'actif')===k?' on':''}" onclick="menuDo('st','${id}','${k}')">${STATUS_LABEL[k]}</button>`).join('')}</div><button class="menu-btn danger" onclick="menuDo('del','${id}')">🗑 Supprimer</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function menuClose(){ const o = document.getElementById('menu-ov'); if (o) o.remove(); }
+function menuDo(a,id,k){
+  menuClose();
+  if (a==='order') startReorder();
+  else if (a==='edit') openAdd(id);
+  else if (a==='st') { const d=load(); const i=d.findIndex(x=>x.id===id); if(i>-1){ d[i]={...d[i],statut:k}; save(d); renderList(); showToast('✓ Statut : '+STATUS_LABEL[k]); } }
+  else if (a==='del' && confirm('Supprimer ce chantier et ses rapports archivés ?')) { removeChantier(id); renderList(); showToast('🗑 Chantier supprimé'); }
+}
+
+// tabKey = 'plan' ou 'devis'. Le Devis reste un fichier unique ; le Plan est
+// maintenant une liste de plans (voir renderPlanList / openPlanCoteur).
+async function renderDetFileTab(tabKey){
+  if(tabKey==='plan'){ renderPlanList(); return; }
+
+  const c = load().find(x=>x.id===currentDetailId);
+  const file = c && c.pdf;
+  const el = document.getElementById('det-tab-devis');
+
+  if(!file){
+    el.innerHTML = `<div class="det-empty-state">
+      <div class="det-empty-icon">📄</div>
+      <div class="det-empty-text">Aucun devis pour l'instant</div>
+      <button class="det-empty-btn" onclick="document.getElementById('det-devis-input').click()">📂 Importer le devis</button>
+    </div>`;
+    return;
+  }
+
+  const url = await getFileUrl(file);
+  if(!url){
+    el.innerHTML = `<div class="det-empty-state">
+      <div class="det-empty-icon">⚠️</div>
+      <div class="det-empty-text">Fichier introuvable en local</div>
+      <button class="det-empty-btn" onclick="document.getElementById('det-devis-input').click()">📂 Réimporter le devis</button>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="det-file-card">
+      <span class="det-file-icon">📄</span>
+      <div class="det-file-info">
+        <div class="det-file-name">${esc(file.name)}</div>
+        <div class="det-file-size">${file.size}</div>
+      </div>
+      <div class="det-file-actions">
+        <button class="det-file-btn ghost" onclick="document.getElementById('det-devis-input').click()">Remplacer</button>
+        <button class="det-file-btn primary" onclick="viewPdf('${currentDetailId}')">Agrandir</button>
+      </div>
+    </div>
+    <iframe class="det-pdf-frame" src="${url}"></iframe>
+  `;
+}
+
+// ── Onglet Plan : liste des plans importés pour ce chantier ──
+function renderPlanList(){
+  const c = load().find(x=>x.id===currentDetailId);
+  const plans = getPlansOf(c);
+  const el = document.getElementById('det-tab-plan');
+
+  if(!plans.length){
+    el.innerHTML = `<div class="det-empty-state">
+      <div class="det-empty-icon">📐</div>
+      <div class="det-empty-text">Aucun plan pour l'instant</div>
+      <button class="det-empty-btn" onclick="document.getElementById('det-plan-input').click()">📂 Importer un plan</button>
+    </div>`;
+    updatePlanFullscreenState();
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="plan-list">
+      ${plans.map(p => `
+        <div class="plan-list-row" onclick="openPlanCoteur('${p.id}')">
+          <span class="plan-list-icon">📐</span>
+          <div class="plan-list-info">
+            <div class="plan-list-name">${esc(p.name)}</div>
+            <div class="plan-list-meta">${esc(p.size||'')}${p.measures ? ' · coté' : ''}</div>
+          </div>
+          <button class="plan-list-del" onclick="deletePlanClick(event,'${p.id}')" title="Supprimer">🗑</button>
+          <span class="plan-list-arrow">›</span>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn btn-teal" style="width:100%;margin-top:14px" onclick="document.getElementById('det-plan-input').click()">+ Importer un plan</button>
+  `;
+  updatePlanFullscreenState();
+}
+
+function deletePlanClick(e, planId){
+  if(e) e.stopPropagation();
+  deletePlan(planId);
+}
+function deletePlan(planId){
+  console.log('🔎 [deletePlan] appelé avec planId=', planId, 'currentDetailId=', currentDetailId);
+  if(!confirm('Supprimer ce plan et ses cotes ?')) { console.log('🔎 [deletePlan] annulé par l\'utilisateur'); return; }
+  try{
+    const data = [...load()];
+    const idx = data.findIndex(x=>x.id===currentDetailId);
+    if(idx===-1){
+      console.error('🔎 [deletePlan] chantier introuvable pour currentDetailId=', currentDetailId);
+      showToast('❌ Chantier introuvable — suppression annulée', 6000);
+      return;
+    }
+    const target = getPlansOf(data[idx]).find(p=>p.id===planId);
+    if(!target) console.warn('🔎 [deletePlan] plan introuvable dans la liste pour planId=', planId, 'plans dispos:', getPlansOf(data[idx]).map(p=>p.id));
+    const plans = getPlansOf(data[idx]).filter(p=>p.id!==planId);
+    data[idx] = {...data[idx], plans};
+    delete data[idx].plan;           // nettoie aussi l'ancien format legacy
+    delete data[idx].planMeasures;
+    const ok = save(data);
+    if(!ok){ console.error('🔎 [deletePlan] save() a échoué'); return; }
+    console.log('🔎 [deletePlan] plan retiré, il en reste', plans.length);
+    renderPlanList();
+    renderList();
+    showToast('🗑 Plan supprimé');
+    if(target && target.pdfKey){
+      delete blobUrlCache[target.pdfKey];
+      deletePdfBlob(target.pdfKey).catch(e=>console.warn('[Chantiers] Suppression IndexedDB échouée:', e));
+    }
+  }catch(e){
+    console.error('🔎 [deletePlan] Erreur inattendue:', e);
+    showToast('❌ Erreur : '+e.message, 6000);
+  }
+}
+
+// ── Ouverture d'un plan précis en plein écran dans le Coteur ──
+let activePlanId = null;
+function openPlanCoteur(planId){
+  activePlanId = planId;
+  coteurReady = false;
+  document.getElementById('det-tab-plan').innerHTML = `<iframe class="det-pdf-frame" id="det-coteur-frame" src="plan/index.html" onload="initCoteurFrame()"></iframe>`;
+  updatePlanFullscreenState();
+}
+
+// Le Coteur passe en plein écran quand un plan précis est ouvert (activePlanId défini).
+// Le bouton ‹ ramène à la liste des plans (pas à l'onglet Infos).
+function updatePlanFullscreenState(){
+  const isFullscreen = currentDetTab==='plan' && !!activePlanId;
+  document.getElementById('det-tab-plan').classList.toggle('plan-fullscreen', isFullscreen);
+  document.querySelector('.det-header').style.display = isFullscreen ? 'none' : '';
+  document.getElementById('plan-exit-btn').style.display = isFullscreen ? 'flex' : 'none';
+  document.getElementById('plan-replace-btn').style.display = isFullscreen ? 'flex' : 'none';
+}
+function exitPlanFullscreen(){
+  activePlanId = null;
+  renderPlanList();
+}
+
+// ── Pont postMessage avec l'outil Coteur de plans (iframe) ──────────
+let coteurReady = false;
+function initCoteurFrame(){
+  coteurReady = true;
+  sendPlanToCoteur();
+}
+async function sendPlanToCoteur(){
+  const frame = document.getElementById('det-coteur-frame');
+  const c = load().find(x=>x.id===currentDetailId);
+  if(!frame || !coteurReady || !c || !activePlanId) return;
+  const plan = getPlansOf(c).find(p=>p.id===activePlanId);
+  if(!plan){
+    console.error('🔎 [sendPlanToCoteur] Plan introuvable dans getPlansOf() pour activePlanId=', activePlanId, 'plans dispos:', getPlansOf(c).map(p=>p.id));
+    showToast('❌ Plan introuvable en local', 6000);
+    return;
+  }
+  console.log('🔎 [sendPlanToCoteur] plan trouvé:', {id:plan.id, name:plan.name, pdfKey:plan.pdfKey, hasData:!!plan.data});
+  const url = await getFileUrl(plan);
+  if(!url){
+    console.error('🔎 [sendPlanToCoteur] getFileUrl a renvoyé null pour', plan);
+    showToast('❌ Fichier introuvable en local', 6000);
+    return;
+  }
+  frame.contentWindow.postMessage({
+    type: 'coteur-init',
+    planData: url,
+    items: plan.measures || null,
+    chantierNom: c.nom + ' — ' + plan.name
+  }, '*');
+}
+let coteurSaveTimer = null;
+window.addEventListener('message', (e)=>{
+  const msg = e.data;
+  if(!msg) return;
+  if(msg.type === 'coteur-ready'){ sendPlanToCoteur(); return; }
+  if(msg.type === 'coteur-items-update' && currentDetailId && activePlanId){
+    clearTimeout(coteurSaveTimer);
+    coteurSaveTimer = setTimeout(()=>{
+      const data = [...load()];
+      const idx = data.findIndex(x=>x.id===currentDetailId);
+      if(idx===-1) return;
+      const plans = getPlansOf(data[idx]).map(p => p.id===activePlanId ? {...p, measures: msg.items} : p);
+      data[idx] = {...data[idx], plans};
+      save(data);
+    }, 400);
+  }
+});
+
+// Remplace le fichier du plan actuellement ouvert en plein écran (garde le même id
+// ET le même chemin Storage, donc écrase juste le fichier ; mesures remises à zéro
+// car les pixels changent).
+async function handleReplacePlanFile(event){
+  const file = event.target.files[0];
+  if(!file || !activePlanId) return;
+  if(file.size > 50 * 1024 * 1024){
+    showToast('⚠️ Fichier trop lourd (max 50 Mo)');
+    event.target.value='';
+    return;
+  }
+  try{
+    const pdfKey = `plan_${currentDetailId}_${activePlanId}`;
+    await savePdfBlob(pdfKey, file);
+    delete blobUrlCache[pdfKey]; // force la régénération de l'URL objet avec le nouveau contenu
+
+    const data = [...load()];
+    const idx = data.findIndex(x=>x.id===currentDetailId);
+    if(idx===-1) return;
+    const plans = getPlansOf(data[idx]).map(p => p.id===activePlanId
+      ? {...p, name:file.name, size:(file.size/1024).toFixed(0)+' Ko', pdfKey, data:undefined, storagePath:undefined, measures:null}
+      : p
+    );
+    data[idx] = {...data[idx], plans};
+    const ok = save(data);
+    if(!ok) return;
+    coteurReady = false;
+    openPlanCoteur(activePlanId); // recharge le frame avec le nouveau fichier
+    showToast('✓ Plan remplacé');
+  } catch(e){
+    console.error('❌ Erreur enregistrement local du plan:', e);
+    showToast('❌ Enregistrement échoué : '+e.message, 8000);
+  }
+  event.target.value='';
+}
+
+async function handleDetFileUpload(event, field){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 50 * 1024 * 1024){
+    showToast('⚠️ Fichier trop lourd (max 50 Mo)');
+    event.target.value='';
+    return;
+  }
+  if(!currentDetailId){
+    showToast('❌ Aucun chantier sélectionné');
+    event.target.value='';
+    return;
+  }
+
+  try{
+    let pdfKey, planId;
+    if(field==='pdf'){
+      pdfKey = `devis_${currentDetailId}`;
+    } else {
+      planId = 'p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+      pdfKey = `plan_${currentDetailId}_${planId}`;
+    }
+    await savePdfBlob(pdfKey, file);
+    delete blobUrlCache[pdfKey];
+
+    const data = [...load()];
+    const idx = data.findIndex(x=>x.id===currentDetailId);
+    if(idx===-1){
+      console.error('❌ Chantier introuvable dans load() pour currentDetailId=', currentDetailId, 'IDs disponibles:', data.map(x=>x.id));
+      showToast('❌ Chantier introuvable (id: '+currentDetailId+') — impossible d\'enregistrer', 8000);
+      return;
+    }
+
+    if(field==='pdf'){
+      const parts = await uploadDevis(currentDetailId, file);
+      data[idx] = {...data[idx], pdf: { name: file.name, size: (file.size/1024).toFixed(0)+' Ko', pdfKey, parts }};
+    } else {
+      const newPlan = {
+        id: planId, name: file.name, size: (file.size/1024).toFixed(0)+' Ko', pdfKey,
+        measures: null, addedAt: new Date().toISOString()
+      };
+      data[idx] = {...data[idx], plans: [...getPlansOf(data[idx]), newPlan]};
+    }
+
+    const ok = save(data);
+    if(!ok) return; // save() a déjà affiché l'erreur exacte
+
+    // Vérification : on relit depuis le stockage pour confirmer que ça a vraiment pris
+    const verify = load().find(x=>x.id===currentDetailId);
+    const verifyOk = field==='pdf'
+      ? (verify && verify.pdf && verify.pdf.pdfKey===pdfKey)
+      : (verify && getPlansOf(verify).some(p=>p.id===planId && p.pdfKey===pdfKey));
+    if(!verifyOk){
+      console.error('❌ Vérification post-sauvegarde échouée.', {field, planId, pdfKey, verify});
+      showToast('❌ Le plan ne s\'est pas enregistré correctement — réessaie', 8000);
+      return;
+    }
+
+    if(field==='plan') renderPlanList(); else refreshDetail();
+    renderList();
+    showToast(`✓ ${field==='plan'?'Plan importé':'Devis enregistré'}`);
+  } catch(e){
+    console.error('❌ Erreur enregistrement local:', e);
+    showToast('❌ Enregistrement échoué : '+e.message, 8000);
+  }
+  event.target.value='';
+}
+
+function closeDetail() { document.getElementById('detail-ov').classList.remove('open'); }
+
+async function removeChantier(id){
+  save(load().filter(c=>c.id!==id));
+  try{ const s = await getDocs(query(collection(db,'chantiers'),where('chantierId','==',id))); s.docs.forEach(x=>deleteDoc(x.ref)); }catch(e){ console.warn(e); }
+  const a = rapLocal(); delete a[id]; localStorage.setItem(RAPK,JSON.stringify(a));
+}
+function deleteCurrentChantier() {
+  if (!currentDetailId) return;
+  if (!confirm('Supprimer ce chantier et ses rapports archivés ?')) return;
+  removeChantier(currentDetailId);
+  closeDetail(); renderList();
+  showToast('🗑 Chantier supprimé');
+}
+ 
+// ════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d+'T12:00:00').toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+function fmtDateLong(d) {
+  if (!d) return '';
+  return new Date(d+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+// Lit la liste des plans d'un chantier, avec compatibilité pour l'ancien format
+// (c.plan unique) — ne modifie rien, juste pour l'affichage/lecture.
+function getPlansOf(c){
+  if(!c) return [];
+  if(Array.isArray(c.plans)) return c.plans;
+  if(c.plan && c.plan.data) return [{ id:'legacy', name:c.plan.name, size:c.plan.size, data:c.plan.data, measures:c.planMeasures||null, addedAt:c.createdAt||new Date().toISOString() }];
+  return [];
+}
+
+function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+ 
+let toastTimer;
+function showToast(msg, duration){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),duration||2200); }
+ 
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+ 
+// Migration : si des chantiers existent dans rv6_c (format simple),
+// les importer dans rv6_chantiers_v1 si celui-ci est vide
+function migrateLegacyChantiers() {
+  const existing = load();
+  if (existing.length > 0) return; // déjà des données riches, rien à faire
+  try {
+    const simple = JSON.parse(localStorage.getItem(KEY_SIMPLE) || '[]');
+    if (!simple.length) return;
+    const migrated = simple.map((nom, i) => ({
+      id: 'leg'+i+Date.now().toString(36),
+      nom: typeof nom === 'string' ? nom : (nom.nom||nom.name||String(nom)),
+      statut: 'actif',
+      color: COLORS[i % COLORS.length],
+      documents:[], photos:[], contacts:[], travaux:[],
+      createdAt: new Date().toISOString(),
+    }));
+    save(migrated);
+  } catch(e) {}
+}
+ 
+async function initApp() {
+  await syncFromFirestore();
+  migrateLegacyChantiers();
+  migrateOrder();
+  renderList();
+  flushPending().then(migrateRapports);
+  requestPersistentStorage();
+}
+
+// Demande au navigateur de ne pas effacer IndexedDB automatiquement sous pression
+// de stockage (sans ça, les PDF de plans/devis peuvent disparaître avec le temps
+// sur certains navigateurs, même sans action de l'utilisateur).
+async function requestPersistentStorage(){
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      const already = await navigator.storage.persisted();
+      if(!already){
+        const granted = await navigator.storage.persist();
+        console.log('🔎 [Storage] Persistance', granted ? 'accordée' : 'refusée par le navigateur');
+      }
+    }
+  }catch(e){ console.warn('🔎 [Storage] Impossible de demander la persistance:', e); }
+}
+
+// ── CALCULATRICE POPUP (historique partagé avec les autres modules) ──
+let calcExpr='';
+let calcShowingResult=false;
+const CALC_HISTORY_KEY='rv6_calc_history';
+const CALC_HISTORY_MAX_DAYS=3;
+
+function calcPurgeHistory(){
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem(CALC_HISTORY_KEY))||[];}catch(e){hist=[];}
+  const limit=Date.now()-(CALC_HISTORY_MAX_DAYS*24*60*60*1000);
+  hist=hist.filter(h=>h.ts>=limit);
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify(hist));
+  return hist;
+}
+function calcGetHistory(){try{return JSON.parse(localStorage.getItem(CALC_HISTORY_KEY))||[];}catch(e){return [];}}
+function calcAddToHistory(expr,result){
+  const hist=calcGetHistory();
+  hist.unshift({expr,result,ts:Date.now()});
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify(hist.slice(0,50)));
+  calcRenderHistory();
+}
+function calcRenderHistory(){
+  const box=document.getElementById('calc-history-list');
+  if(!box)return;
+  const hist=calcGetHistory();
+  if(hist.length===0){
+    box.innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:6px 0;">Aucun calcul récent</div>';
+    return;
+  }
+  box.innerHTML=hist.map(h=>{
+    const exprDisp=h.expr.replace(/\*/g,'×').replace(/\//g,'÷');
+    return `<div class="calc-history-row" onclick="calcUseHistory('${h.result}')">
+      <span class="calc-history-expr">${exprDisp} =</span>
+      <span class="calc-history-result">${h.result}</span>
+    </div>`;
+  }).join('');
+}
+function calcUseHistory(result){
+  if(calcExpr===''||calcShowingResult){calcExpr=String(result);}
+  else{calcExpr+=String(result);}
+  calcShowingResult=false;
+  calcRefreshDisplay();
+}
+function calcClearHistory(){
+  localStorage.setItem(CALC_HISTORY_KEY,JSON.stringify([]));
+  calcRenderHistory();
+}
+function openCalculatrice(){
+  calcExpr='';
+  calcShowingResult=false;
+  calcPurgeHistory();
+  calcRefreshDisplay();
+  calcRenderHistory();
+  document.getElementById('overlay-calc').classList.add('open');
+}
+function closeCalculatrice(e){
+  if(e&&e.target.id!=='overlay-calc')return;
+  document.getElementById('overlay-calc').classList.remove('open');
+}
+function calcRefreshDisplay(){
+  const line=document.getElementById('calc-expr-line');
+  const d=document.getElementById('calc-display');
+  if(calcExpr===''){line.textContent='';d.textContent='0';return;}
+  line.textContent='';
+  d.textContent=calcExpr.replace(/\*/g,'×').replace(/\//g,'÷');
+}
+function calcDigit(d){
+  if(calcShowingResult){calcExpr='';calcShowingResult=false;}
+  if(d==='.'){
+    const parts=calcExpr.split(/[+\-*/]/);
+    const last=parts[parts.length-1];
+    if(last.includes('.'))return;
+    if(last==='')calcExpr+='0';
+  }
+  calcExpr+=d;
+  calcRefreshDisplay();
+}
+function calcOp(op){
+  if(calcExpr==='')return;
+  if(calcShowingResult){calcShowingResult=false;}
+  const lastChar=calcExpr.slice(-1);
+  if('+-*/'.includes(lastChar)){calcExpr=calcExpr.slice(0,-1)+op;}
+  else{calcExpr+=op;}
+  calcRefreshDisplay();
+}
+function calcClear(){calcExpr='';calcShowingResult=false;calcRefreshDisplay();}
+function calcBackspace(){
+  if(calcShowingResult){calcExpr='';calcShowingResult=false;}
+  else{calcExpr=calcExpr.slice(0,-1);}
+  calcRefreshDisplay();
+}
+function calcEquals(){
+  if(calcExpr===''||calcShowingResult)return;
+  let safeExpr=calcExpr.replace(/[+\-*/]+$/,'');
+  if(!/^[0-9.+\-*/]+$/.test(safeExpr)){calcClear();return;}
+  try{
+    const result=Function('"use strict"; return ('+safeExpr+')')();
+    if(!isFinite(result)){
+      document.getElementById('calc-expr-line').textContent='';
+      document.getElementById('calc-display').textContent='Erreur';
+      calcExpr='';
+      return;
+    }
+    const rounded=Math.round(result*100000)/100000;
+    const exprForHistory=safeExpr;
+    document.getElementById('calc-expr-line').textContent=safeExpr.replace(/\*/g,'×').replace(/\//g,'÷')+' =';
+    document.getElementById('calc-display').textContent=String(rounded);
+    calcExpr=String(rounded);
+    calcShowingResult=true;
+    calcAddToHistory(exprForHistory,rounded);
+  }catch(e){
+    document.getElementById('calc-expr-line').textContent='';
+    document.getElementById('calc-display').textContent='Erreur';
+    calcExpr='';
+    calcShowingResult=false;
+  }
+}
+
+// ── DATE DU HEADER ──
+function updateHeaderDate(){
+  const el=document.getElementById('hdrSub');
+  if(!el)return;
+  const str=new Date().toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long'});
+  el.textContent=str.charAt(0).toUpperCase()+str.slice(1);
+}
+updateHeaderDate();
+
+// ── EXPOSE FONCTIONS AU HTML ─────────────────
+window.openAdd               = openAdd;
+window.closeAdd              = closeAdd;
+window.saveChantier          = saveChantier;
+window.setFilter             = setFilter;
+window.onSearch              = onSearch;
+window.selectColor           = selectColor;
+window.clearPdf              = clearPdf;
+window.viewPdf                = viewPdf;
+window.openDetail            = openDetail;
+window.closeDetail           = closeDetail;
+window.deleteCurrentChantier = deleteCurrentChantier;
+window.switchDetTab          = switchDetTab;
+window.exitPlanFullscreen    = exitPlanFullscreen;
+window.handleDetFileUpload   = handleDetFileUpload;
+window.handleReplacePlanFile = handleReplacePlanFile;
+window.openPlanCoteur        = openPlanCoteur;
+window.deletePlan            = deletePlan;
+window.deletePlanClick        = deletePlanClick;
+window.initCoteurFrame       = initCoteurFrame;
+window.openCalculatrice      = openCalculatrice;
+window.closeCalculatrice     = closeCalculatrice;
+window.calcClearHistory      = calcClearHistory;
+window.calcUseHistory        = calcUseHistory;
+window.calcDigit             = calcDigit;
+window.calcOp                = calcOp;
+window.calcClear             = calcClear;
+window.calcBackspace         = calcBackspace;
+window.calcEquals            = calcEquals;
+Object.assign(window,{cardTap,menuClose,menuDo,endReorder,editCurrent,setStatut,viewDevis,rapEdit,rapDel});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('../service-worker.js').catch(()=>{});
+}
+
+</script>
+<script type="module" src="../notes.js"></script>
+</body>
+</html>
